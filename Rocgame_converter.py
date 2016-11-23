@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import numpy as np
-from preprocessing import Preprocess
+from Rocpreprocessing import Preprocess
 from Rocutil import sgf_iter_states
 import Rocgo as go
 import os
