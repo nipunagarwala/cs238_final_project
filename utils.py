@@ -1,8 +1,8 @@
 import sgf
-import os
 import h5py
 import numpy as np
 from Rocgame_converter import *
+import Rocgo as go
 
 # constants
 # map from numerical coordinates to letters used by SGF
@@ -156,9 +156,3 @@ def sgf2stateaction(filename, boardIndx, feature_list=FEATURE_LIST):
         return ()
 
     return (states,actions)
-
-# Usage:
-# sgfWriter([0,1,2,3,4,9,10],'example.sgf')
-# s,a = sgf2stateaction('example.sgf',[0,1,2,3,4,5,6])
-# print s[6,0:3,:,:]
-# print a
