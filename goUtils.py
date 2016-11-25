@@ -400,8 +400,3 @@ def valueDataGen(sl_model, rl_model, U_MAX=90, verbose=False, playbyplay=False):
         print "Reward: %d" %reward
 
     return uPState,reward
-
-
-gymEnv = gym.make('Go9x9-v0')
-gymEnv.reset()
-gymEnv.render()
