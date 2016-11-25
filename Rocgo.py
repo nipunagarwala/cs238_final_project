@@ -479,7 +479,7 @@ class GameState(object):
                         self.__legal_eyes_cache.append((x, y))
         return self.get_legal_moves(include_eyes)
 
-    def get_winner(self):
+    def get_winner(self, verbose=False):
         """Calculate score of board state and return player ID (1, -1, or 0 for tie)
         corresponding to winner. Uses 'Area scoring'.
         """
@@ -494,8 +494,12 @@ class GameState(object):
             elif self.is_eyeish(empty, WHITE):
                 score_white += 1
         score_white += self.komi
-        score_white -= self.passes_white
-        score_black -= self.passes_black
+        #score_white -= self.passes_white
+        #score_black -= self.passes_black
+        if verbose:
+            print "Scores:"
+            print "Black: %d" %score_black
+            print "White: %d" %score_white
         if score_black > score_white:
             winner = BLACK
         elif score_white > score_black:
