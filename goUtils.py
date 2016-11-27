@@ -100,6 +100,8 @@ class NNGoPlayer(object):
         # pass action is self.pass_action
         # resign action is self.resign_action
 
+        move = self.nnmodel(state)
+
         return self.makeRandomValidMove()
 
     def updatePachiMove(self, observation, playbyplay=False):
