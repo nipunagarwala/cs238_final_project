@@ -3,14 +3,10 @@ import copy
 import math
 
 import Rocgo
+from constants import *
 from NNGoPlayer import NNGoPlayer
 
 from rochesterWrappers import *
-
-BOARD_SZ = 9
-PASS_ACTION = (BOARD_SZ**2)
-RESIGN_ACTION = (BOARD_SZ**2)+1
-KOMI = 6.5
 
 class MCNode(object):
     """

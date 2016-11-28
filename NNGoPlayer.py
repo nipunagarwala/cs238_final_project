@@ -4,12 +4,9 @@ import Rocgo
 import numpy as np
 import random
 
+from constants import *
 from rochesterWrappers import *
 from gym.envs.board_game import go
-
-BOARD_SZ = 9
-PASS_ACTION = (BOARD_SZ**2)
-RESIGN_ACTION = (BOARD_SZ**2)+1
 
 """
 pachi_py constants:

@@ -4,14 +4,10 @@ import numpy as np
 import random
 
 import Rocgo
+from constants import *
 from NNGoPlayer import NNGoPlayer,nn_vs_nnGame
 from rochesterWrappers import *
 from utils import write2hdf5
-
-BOARD_SZ = 9
-PASS_ACTION = (BOARD_SZ**2)
-RESIGN_ACTION = (BOARD_SZ**2)+1
-KOMI = 6.5
 
 def postGameLearn_RL(nnPlayer, reward):
     """
