@@ -1,4 +1,4 @@
-# cs238_final_project DeepGo.py
+# cs238_final_project (DeepGo.py)
 An attempt at replicating [AlphaGo](https://deepmind.com/research/alphago/) by DeepMind.
 
 ## Files
