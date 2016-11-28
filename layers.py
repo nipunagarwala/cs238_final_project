@@ -35,6 +35,11 @@ class Layers(object):
         next_layer = tf.sigmoid(prev_layer)
         return next_layer
 
+    def tanh(self, prev_layer):
+        next_layer = tf.tanh(prev_layer)
+        return next_layer
+
+
     def batch_norm(self, prev_layer, axes, beta_shape,scale_shape, var_eps = 1e-6):
         mu, sigma = tf.nn.moments(prev_layer, axes)
         beta = self.init_weights(beta_shape)
