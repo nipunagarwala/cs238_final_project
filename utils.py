@@ -76,26 +76,33 @@ def sgf2hdf5(filename, sgfDir, boardSz=BOARD_SZ):
     """
     run_game_converter(['--outfile', filename, '--directory', sgfDir, '--size', str(boardSz), '--features', 'all'])
 
-def hdf52stateaction(hdf5Filename):
+def write2hdf5(filename, dict2store):
     """
-    Loads an HDF5 file of a game and returns a tuple of state and action pairs
+    Write items in a dictionary to an hdf5file
+
+    @type   filename    :   String
+    @param  filename    :   Filename of the hdf5 file to output to.
+    @type   dict2store  :   Dict
+    @param  dict2store  :   Dictionary of items to store. The value should be an array.
+
+    """
+    with h5py.File(filename,'w') as hf:
+        for key,value in dict2store.iteritems():
+            hf.create_dataset(key, data=value)
+
+def hdf52dict(hdf5Filename):
+    """
+    Loads an HDF5 file of a game and returns a dictionary of the contents
 
     @type   hdf5Filename:   String
     @param  hdf5Filename:   Filename of the hdf5 file.
-
-    @rtype              :   A tuple of numpy matrices
-    @return             :   np_states stores the state information at each time slot
-                            np_acts stores the action information at each time slot
-                            Dimensionalities:
-                                np_states - (npositions)*48*boardSz*boardSz
-                                np_acts - (npositions)*2, where 2 corresponds to
-                                          x and y coordinates
     """
+    retDict = {}
     with h5py.File(hdf5Filename,'r') as hf:
-        np_states = np.array(hf.get("states"))
-        np_acts = np.array(hf.get("actions"))
+        for key in hf.keys():
+            retDict[key] = np.array(hf.get(key))
 
-    return (np_states, np_acts)
+    return retDict
 
 def sgf2stateaction(filename, boardIndx, feature_list=FEATURE_LIST):
     """
