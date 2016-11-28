@@ -19,35 +19,35 @@ Functions `RL_Playout(numGames, filename, policyModel, opponentModel)` and `Valu
 Implements the Go player class.
 
 Important Fields:
-..* self.states - A list of all states encountered while playing
-..* self.actions - A list of all actions made
-..* self.nnmodel - NN backend that makes the decision
-..* self.color - NNGoPlayer.BLACK or NNGoPlayer.WHITE
-..* self.rocColor - Rocgo.BLACK or Rocgo.WHITE
-..* self.pachiColor - pachi_py.BLACK or pachi_py.WHITE
+  * self.states - A list of all states encountered while playing
+  * self.actions - A list of all actions made
+  * self.nnmodel - NN backend that makes the decision
+  * self.color - NNGoPlayer.BLACK or NNGoPlayer.WHITE
+  * self.rocColor - Rocgo.BLACK or Rocgo.WHITE
+  * self.pachiColor - pachi_py.BLACK or pachi_py.WHITE
 
 Important Functions:
-..* `makemoveGym()`
-..* `makemoveRL(playRandom)`
-..* `makeRandomValidMove()`
+  * `makemoveGym()`
+  * `makemoveRL(playRandom)`
+  * `makeRandomValidMove()`
 
 `nn_vs_nnGame(rocEnv, playBlack, nnBlack, nnWhite)` is also implemented, and it plays out a game between two NNGoPlayer classes starting at the board configuration specified in `rocEnv`
 
 ### utils.py
 Implements I/O related functions.
 Useful Functions:
-..* `write2hdf5(filename, dict2store)`
-..* `hdf52dict(hdf5Filename)`
+  * `write2hdf5(filename, dict2store)`
+  * `hdf52dict(hdf5Filename)`
 
 ### rochesterWrappers.py
 Wrapper functions for the Rochester Go Board implementations.
 Useful Functions:
-..* `initRocBoard()`
-..* `rocBoard2State(rocEnv)`
-..* `printRocBoard(rocEnv)`
-..* `returnRocBoard(rocEnv)`
-..* `get_legal_coords(rocEnv)`
-..* `intMove2rocMove(rocEnv)`
+  * `initRocBoard()`
+  * `rocBoard2State(rocEnv)`
+  * `printRocBoard(rocEnv)`
+  * `returnRocBoard(rocEnv)`
+  * `get_legal_coords(rocEnv)`
+  * `intMove2rocMove(rocEnv)`
 
 ### MCTS.py
 A Monte-Carlo Tree Search implementation. Class `MCNode` represents a node in a tree. `MCTreeSearch()` can be called to initiate the search.
