@@ -9,21 +9,11 @@ from NNGoPlayer import NNGoPlayer,nn_vs_nnGame
 from rochesterWrappers import *
 from utils import write2hdf5
 
-def postGameLearn_RL(nnPlayer, reward):
-    """
-    NN backpropagation after a game is played out.
-    """
-    states = nnPlayer.states
-    actions = nnPlayer.actions
-
-    # learn, backprop
-    # TODO
-
-def RL_Playout(numGames, filename, policyModel, opponentModel=None, verbose=False, playbyplay=False):
+def RL_Playout(numGames, policyModel, filename=None, opponentModel=None, verbose=False, playbyplay=False):
     """
     Plays out 'numGames' Games between policyModel and opponentModel.
     If the opponentModel is None, the policy will play against Pachi under OpenAI Gym.
-    Saves the state action pairs to a file specified in 'filename'
+    Saves the state action pairs to a file if 'filename' is specified.
     """
     gamesPlayed = 0
     states = []
@@ -41,7 +31,10 @@ def RL_Playout(numGames, filename, policyModel, opponentModel=None, verbose=Fals
             actions += nnPlayer.actions
             rewards += [reward]*len(nnPlayer.actions)
 
-    write2hdf5(filename, {'states':states, 'actions':actions, 'rewards':rewards})
+    if filename:
+        write2hdf5(filename, {'states':states, 'actions':actions, 'rewards':rewards})
+
+    return states,actions,rewards
 
 def Gym_DataGen(policyModel, verbose=False, playbyplay=False):
     """
@@ -139,10 +132,10 @@ def RL_DataGen(policyModel, opponentModel, verbose=False, playbyplay=False):
 
     return (nnPlayer,reward)
 
-def Value_Playout(numGames, filename, sl_model, rl_model, U_MAX=90, verbose=False, playbyplay=False):
+def Value_Playout(numGames, sl_model, rl_model, filename=None, U_MAX=90, verbose=False, playbyplay=False):
     """
     Plays out 'numGames' value iteration games.
-    Saves the state action pairs to a file specified in 'filename'
+    Saves the state action pairs to a file if 'filename' is specified.
     """
     gamesPlayed = 0
     states = []
@@ -157,7 +150,10 @@ def Value_Playout(numGames, filename, sl_model, rl_model, U_MAX=90, verbose=Fals
             states.append(state)
             rewards.append(reward)
 
-    write2hdf5(filename, {'states':states, 'rewards':rewards})
+    if filename:
+        write2hdf5(filename, {'states':states, 'rewards':rewards})
+
+    return states,rewards
 
 def valueDataGen(sl_model, rl_model, U_MAX=90, verbose=False, playbyplay=False):
     """
