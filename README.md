@@ -10,9 +10,9 @@ Taken from the [Rochester-NRT/RocAlphaGo project](https://github.com/Rochester-N
 ### DataGen.py
 Implements the data generation functionalities for RL and Value iteration stages.
 
-Functions `Gym_DataGen(policyModel)`, `RL_DataGen(policyModel, opponentModel)`, and `valueDataGen(sl_model, rl_model, U_MAX)` implements 1 pass through of a simulation, and returns appropriate data for that simulation.
+Functions `RL_Playout(numGames, policyModel, filename=None, opponentModel)` and `Value_Playout(numGames, sl_model, rl_model, filename, U_MAX)` wraps around those functions `numGames` times and stores the result to an `.hdf5` file specified via `filename`.
 
-Functions `RL_Playout(numGames, filename, policyModel, opponentModel)` and `Value_Playout(numGames, filename, sl_model, rl_model, U_MAX)` wraps around those functions `numGames` times and stores the result to an `.hdf5` file specified via `filename`.
+Functions `Gym_DataGen(policyModel)`, `RL_DataGen(policyModel, opponentModel)`, and `valueDataGen(sl_model, rl_model, U_MAX)` implements 1 pass through of a simulation, and returns appropriate data for that simulation.
 
 .hdf5 file contents for each functions are as follows:
   *`RL_Playout()` - 'states' 'actions' 'rewards' (actions not 1-hot encoded)
@@ -44,6 +44,8 @@ Implements I/O related functions.
 Useful Functions:
   * `write2hdf5(filename, dict2store)`
   * `hdf52dict(hdf5Filename)`
+  * `hdf5Augment(filename, outfilename)`
+  * `pachiGameRecorder(filename)`
 
 ------------------------------
 ### rochesterWrappers.py

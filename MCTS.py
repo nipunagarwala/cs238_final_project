@@ -4,7 +4,7 @@ import math
 
 import Rocgo
 from constants import *
-from NNGoPlayer import NNGoPlayer
+from NNGoPlayer import NNGoPlayer,nn_vs_nnGame
 
 from rochesterWrappers import *
 
@@ -14,14 +14,12 @@ class MCNode(object):
     """
 
     nVl = 3     # "virtual loss"
-    nThr = 40   # expansion threshold
+    nThr = 2   # expansion threshold
     lmbda = 0.5 # value score/rollout score mixing constant
     beta = 0.67 # prior softmax constant
     cpuct = 5   # exploration term
 
-    def __init__(self, rocEnv, P, color, sl_nnModel):
-        # AKA Expansion
-        self.rocEnv = rocEnv
+    def __init__(self, P, color, sl_nnModel):
         self.P = P
         self.color = color
 
@@ -30,28 +28,26 @@ class MCNode(object):
         self.Nr = [0]*self.actionSpace
         self.Wv = [0]*self.actionSpace
         self.Wr = [0]*self.actionSpace
-        self.Q = [0]*self.actionSpace
 
         self.sl_nnModel = sl_nnModel
         self.prior = self.getPrior()
-
-        # TODO: check if deepcopy works with Rochester Board Object
-        nextColor = Rocgo.WHITE if self.color==Rocgo.BLACK else Rocgo.BLACK
-        self.nextStates = [None]*self.actionSpace
-        validMoves = get_legal_coords(self.rocEnv)
-        for act in range(self.actionSpace-1):
-            if act in validMoves:
-                self.nextStates[act] = copy.deepcopy(self.rocEnv)
-                self.nextStates[act].do_move(intMove2rocMove(act), color=nextColor)
-            else:
-                self.Q[act] = -float('inf')
+        self.legalMovesNotDefined = True
 
         self.children = [None]*self.actionSpace
+
+    def setLegalMoves(self, rocEnv):
+        # Mark all illegal moves in Q as -infinity
+        self.legalMovesNotDefined = False
+        nextColor = Rocgo.WHITE if self.color==Rocgo.BLACK else Rocgo.BLACK
+        validMoves = get_legal_coords(rocEnv)
+        self.Q = [-float('inf')]*self.actionSpace
+        for act in validMoves:
+            self.Q[act] = 0
 
     def getPrior(self):
         # TODO
         # use rocBoard2State() and self.sl_nnModel and beta to figure out the prior
-        return [0.5]*self.actionSpace
+        return [0.012]*self.actionSpace
 
     def update(self, act, gameResult, vAtLeaf):
         self.Nr[act] += 1
@@ -63,16 +59,15 @@ class MCNode(object):
 
         # expand
         if self.Nr[act]==MCNode.nThr:
+            print "expanding a node..."
             self.expand(act)
 
     def expand(self, act):
         nextColor = Rocgo.WHITE if self.color==Rocgo.BLACK else Rocgo.BLACK
-        self.children[act] = MCNode(self.nextStates[act], self.prior[act], nextColor, self.sl_nnModel)
+        self.children[act] = MCNode(self.prior[act], nextColor, self.sl_nnModel)
 
     def __str__(self):
         repStr = ''
-        repStr += 'State:\n'
-        repStr += str(returnRocBoard(self.rocEnv))+'\n'
         repStr += 'P:\n'
         repStr += str(self.P)+'\n'
         repStr += 'Color:\n'
@@ -91,13 +86,20 @@ class MCNode(object):
         repStr += str(self.prior)+'\n'
         return repStr
 
-def reachLeaf(root):
+def reachLeaf(root, board, playbyplay=False):
     nodes = []
     acts = []
     nodes.append(root)
     currNode = root
     # reach a leaf
     while True:
+        if playbyplay:
+            printRocBoard(board)
+
+        # make sure that the legal move is stored in the current node
+        if currNode.legalMovesNotDefined:
+            currNode.setLegalMoves(board)
+
         # choose an action
         act = None
         u_num = MCNode.cpuct*currNode.P*math.sqrt(sum(currNode.Nr))
@@ -109,6 +111,7 @@ def reachLeaf(root):
                 maxVal = val
 
         acts.append(act)
+        board.do_move(intMove2rocMove(act))
 
         nextNode = currNode.children[act]
         if not nextNode:
@@ -118,7 +121,6 @@ def reachLeaf(root):
         currNode = nextNode
 
     return nodes,acts
-
 
 def getVAtLeaf(value_nnModel, state):
     # TODO
@@ -154,34 +156,34 @@ def update(nodes, acts, result, vAtLeaf):
     for node,act in zip(nodes, acts):
         node.update(act, result, vAtLeaf)
 
-MCTS_SEARCH_NUM = 1
-def MCTreeSearch(state, color, sl_nnModel, rolloutModel, value_nnModel):
-    root = MCNode(state, 1, Rocgo.WHITE if color==Rocgo.BLACK else Rocgo.BLACK, sl_nnModel)
+def MCTreeSearch(searchNum, state, color, sl_nnModel, rolloutModel, value_nnModel, verbose=False, playbyplay=False):
+    root = MCNode(1, Rocgo.WHITE if color==Rocgo.BLACK else Rocgo.BLACK, sl_nnModel)
 
     # expand out the nodes for the first move
     for i in range(BOARD_SZ**2+1):
-        print i
         root.expand(i)
     root.Nr = [MCNode.nThr]*root.actionSpace
 
     # explore the actions & refine Q
-    for i in range(MCTS_SEARCH_NUM):
+    for i in range(searchNum):
+        if verbose:
+            print "MCTS Iteration #%d" % i
+
+        board = state.copy()
+
         # play the game up till the leaf
-        nodes,acts = reachLeaf(root)
+        nodes,acts = reachLeaf(root, board, playbyplay=playbyplay)
 
         # find the value at leaf node
-        boardAtLeaf = nodes[-1].nextStates[acts[-1]]
-        vAtLeaf = getVAtLeaf(value_nnModel, rocBoard2State(boardAtLeaf))
+        vAtLeaf = getVAtLeaf(value_nnModel, rocBoard2State(board))
 
         # play the rest of the game
-        result = playout(rolloutModel, boardAtLeaf)
+        result = playout(rolloutModel, board, verbose=verbose)
 
         update(nodes, acts, result, vAtLeaf)
 
+    print 'Done with MCTS'
     print root
 
     # choose the best Q
     return np.argmax(np.asarray(root.Q))
-
-rocEnv = initRocBoard()
-MCTreeSearch(rocEnv, Rocgo.BLACK, None, None, None)

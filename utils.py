@@ -3,17 +3,13 @@ import h5py
 import numpy as np
 from Rocgame_converter import *
 import Rocgo as go
+from constants import *
 
 # constants
 # map from numerical coordinates to letters used by SGF
 SGF_POS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-BOARD_SZ = 9
-# default feature list for the state generation
-FEATURE_LIST = ["board", "ones", "turns_since", "liberties", "capture_size",
-                "self_atari_size", "liberties_after", "ladder_capture", 
-                "ladder_escape", "sensibleness", "zeros"]
 
-def sgfWriter(actions, filename, boardSz=9):
+def sgfWriter(actions, filename, boardSz=BOARD_SZ):
     """
     Creates an SGF file from the input 'actions'
 
@@ -88,7 +84,7 @@ def write2hdf5(filename, dict2store):
     """
     with h5py.File(filename,'w') as hf:
         for key,value in dict2store.iteritems():
-            hf.create_dataset(key, data=value)
+            hf.create_dataset(key, data=value,compression="lzf")
 
 def hdf52dict(hdf5Filename):
     """
@@ -103,6 +99,85 @@ def hdf52dict(hdf5Filename):
             retDict[key] = np.array(hf.get(key))
 
     return retDict
+
+def perLayerOp(mat, opFunc):
+    """
+    Assumes that mat is a 3D numpy matrix, and applies the function specified 
+    via opFunc for dimensions 2 and 3 of mat.
+    """
+    retMat = np.empty_like(mat)
+    for i in range(mat.shape[0]):
+        retMat[i,:,:] = opFunc(mat[i,:,:])
+
+    return retMat
+
+def hdf5Augment(filename, outfilename):
+    """
+    Augments the games stored in filename by rotating and reflecting the states.
+
+    @type   filename    :   String
+    @param  filename    :   Name of the file to read from.
+    """
+    states = []
+    actions = []
+
+    originalDict = hdf52dict(filename)
+    oriSts = originalDict['states']
+    oriActs = originalDict['actions']
+
+    count = 0
+    numSamples = oriSts.shape[0]
+    for i in range(numSamples):
+        count += 1
+        if count%1000==0:
+            print count
+
+        state0 = oriSts[i,:,:,:]
+        state90 = perLayerOp(state0, np.rot90)
+        state180 = perLayerOp(state90, np.rot90)
+        state270 = perLayerOp(state180, np.rot90)
+        state0Ref = perLayerOp(state0, np.fliplr)
+        state90Ref = perLayerOp(state90, np.fliplr)
+        state180Ref = perLayerOp(state180, np.fliplr)
+        state270Ref = perLayerOp(state270, np.fliplr)
+
+        states.append(state0)
+        states.append(state90)
+        states.append(state180)
+        states.append(state270)
+        states.append(state0Ref)
+        states.append(state90Ref)
+        states.append(state180Ref)
+        states.append(state270Ref)
+
+        actionBoard = np.zeros((BOARD_SZ,BOARD_SZ))
+        actionBoard[oriActs[i][0],oriActs[i][1]] = 1
+        actionBoard90 = np.rot90(actionBoard).copy()
+        actionBoard180 = np.rot90(actionBoard90).copy()
+        actionBoard270 = np.rot90(actionBoard180).copy()
+        actionBoard0Ref = np.fliplr(actionBoard).copy()
+        actionBoard90Ref = np.fliplr(actionBoard90).copy()
+        actionBoard180Ref = np.fliplr(actionBoard180).copy()
+        actionBoard270Ref = np.fliplr(actionBoard270).copy()
+
+        oneLoc = np.where(actionBoard)
+        actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        oneLoc = np.where(actionBoard90)
+        actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        oneLoc = np.where(actionBoard180)
+        actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        oneLoc = np.where(actionBoard270)
+        actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        oneLoc = np.where(actionBoard0Ref)
+        actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        oneLoc = np.where(actionBoard90Ref)
+        actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        oneLoc = np.where(actionBoard180Ref)
+        actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        oneLoc = np.where(actionBoard270Ref)
+        actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+
+    write2hdf5(outfilename, {'states':states, 'actions':actions})
 
 def sgf2stateaction(filename, boardIndx, feature_list=FEATURE_LIST):
     """
@@ -163,3 +238,72 @@ def sgf2stateaction(filename, boardIndx, feature_list=FEATURE_LIST):
         return ()
 
     return (states,actions)
+
+import gym
+import pachi_py
+from rochesterWrappers import printRocBoard
+from NNGoPlayer import NNGoPlayer
+def pachiGameRecorder(filename, verbose, playbyplay):
+    """
+    Plays a game between two pachi players.
+    Stores the game as an sgf file with name 'filename'
+    """
+    actions = []
+
+    # create 2 gym environments
+    gymEnv1 = gym.make('Go9x9-v0')
+    gymEnv1.reset()
+    gymEnv1.state.color = pachi_py.WHITE
+    gymEnv1.player_color = pachi_py.WHITE
+
+    gymEnv2 = gym.make('Go9x9-v0')
+    gymEnv2.reset()
+
+    # create 2 dummies to play against pachi
+    dummy1 = NNGoPlayer(NNGoPlayer.WHITE, None, gymEnv=gymEnv1)
+    dummy2 = NNGoPlayer(NNGoPlayer.BLACK, None, gymEnv=gymEnv2)
+
+    # play out the game
+    playBlack = True
+    dummy2.last_pachi_mv = PASS_ACTION
+    while True:
+        if playbyplay:
+            printRocBoard(dummy1.rocEnv)
+            printRocBoard(dummy2.rocEnv)
+
+        dummyPlaying = dummy1 if playBlack else dummy2
+        dummyNotPlaying = dummy2 if playBlack else dummy1
+        playBlack = not playBlack
+
+        try:
+            if dummyPlaying.makemoveGym(move=dummyNotPlaying.last_pachi_mv, 
+                                        playbyplay=playbyplay):
+                break
+        except:
+            gymEnv1.render()
+            printRocBoard(dummy1.rocEnv)
+            gymEnv2.render()
+            printRocBoard(dummy2.rocEnv)
+
+        actions.append(dummyPlaying.last_pachi_mv)
+
+    if verbose:
+        gymEnv1.render()
+        printRocBoard(dummy1.rocEnv)
+        gymEnv2.render()
+        printRocBoard(dummy2.rocEnv)
+        print ""
+        print "Winner: %s" %('Black' if gymEnv1.state.board.official_score<0 else 'White')
+        print "Score: %d" % gymEnv1.state.board.official_score
+
+    sgfWriter(actions, filename)
+
+def pachi_game_Dump(num_games=1000):
+    """
+    Runs pachiGameRecorder() 'num_games' times and dumps the result under pachi_games.hdf5
+    """
+    filename = 'pachi_games/pachi_game_%d.sgf'
+    for i in range(num_games):
+        print i
+        pachiGameRecorder(filename=filename%i, verbose=False,playbyplay=False)
+    sgf2hdf5('pachi_games.hdf5', 'pachi_games')

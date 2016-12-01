@@ -79,6 +79,9 @@ class NNGoPlayer(object):
         return self.makeRandomValidMove()
 
     def updatePachiMove(self, observation, playbyplay=False):
+        """
+        Infer the pachi movement from observations.
+        """
         pachiBoard = observation[(self.color+1)%2]
 
         if hasattr(self, 'last_obs'):
@@ -89,8 +92,10 @@ class NNGoPlayer(object):
         pachiRocColor = Rocgo.WHITE if self.color==NNGoPlayer.BLACK else Rocgo.BLACK
         if oneLoc[0].size==0:
             opponentMv = None
+            self.last_pachi_mv = PASS_ACTION
         else:
             opponentMv = (oneLoc[1][0], oneLoc[0][0])
+            self.last_pachi_mv = opponentMv[0]+opponentMv[1]*BOARD_SZ
         
         self.rocEnv.do_move(opponentMv, color=pachiRocColor)
         if playbyplay:
@@ -102,7 +107,8 @@ class NNGoPlayer(object):
 
         self.last_obs = pachiBoard
 
-    def makemoveGym(self, playbyplay=False):
+
+    def makemoveGym(self, move=None, playbyplay=False):
         """
         Plays a move against Pachi.
         Advances both the gym environment and the Rochester gameboard.
@@ -114,7 +120,8 @@ class NNGoPlayer(object):
         state = rocBoard2State(self.rocEnv)
         self.states.append(state)
 
-        move = self.nnMoveLogic(state)
+        if not move:
+            move = self.nnMoveLogic(state)
         if playbyplay:
             print "Policy (%s) - %d" % ("Black" if self.color==NNGoPlayer.BLACK else "White", move)
 
