@@ -45,7 +45,7 @@ class PolicyNetwork(CNNLayers):
 
 		fcShapeConv = layersOut['layer'+str(self.num_layers)].get_shape().as_list()[1:]
 		numParams = reduce(lambda x, y: x*y, fcShapeConv)
-		layersOut['pred'] = tf.reshape(layersOut['layer'+str(self.num_layers)], [self.batch_size, numParams])
+		layersOut['pred'] = self.sigmoid(tf.reshape(layersOut['layer'+str(self.num_layers)], [self.batch_size, numParams]))
 
 		self.layersOut = layersOut
 		self.weights = weights
@@ -54,7 +54,7 @@ class PolicyNetwork(CNNLayers):
 
 
 	def train(self):
-		cost = self.cost_function( self.layersOut['pred'], self.output, op='softmax')
+		cost, prob = self.cost_function( self.layersOut['pred'], self.output, op='softmax')
 		cumCost = cost
 		numEntries = len(self.weights)
 
@@ -64,7 +64,7 @@ class PolicyNetwork(CNNLayers):
 				cumCost = self.add_regularization( cumCost, weightVals[i], self.lmbda[i], None, op='l2')
 
 		train_op = self.minimization_function(cumCost, self.learning_rate, self.beta1, self.beta2, self.op)
-		return cumCost, train_op
+		return cumCost, train_op, prob
 
 
 class ValueNetwork(CNNLayers):
@@ -139,7 +139,7 @@ class ValueNetwork(CNNLayers):
 
 
 	def train(self):
-		cost = self.cost_function( self.layersOut['pred'], self.output, op='square')
+		cost, prob = self.cost_function( self.layersOut['pred'], self.output, op='square')
 		cumCost = cost
 		numEntries = len(self.weights)
 

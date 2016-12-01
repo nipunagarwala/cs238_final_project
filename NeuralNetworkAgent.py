@@ -31,13 +31,13 @@ class NeuralNetworkAgent(CNNLayers):
 
 		print("Creating Policy Network Model Object")
 		self.network = PolicyNetwork(self.inputTrainPos,self.trainLabel,self.batch_size, num_filters=128,
-								 learning_rate=1e-3, beta1=0.99, beta2=0.99, lmbda = None, op='Rmsprop')
+								 learning_rate=1e-3, beta1=0.99, beta2=0.99, lmbda = CNN_REG_CONSTANTS, op='Rmsprop')
 		
 		print("Building the Policy Network Model")
 		self.layerOuts, self.weights = self.network.build_model()
 
 		print("Setting up training policies and structure for Policy Network")
-		self.cumCost, self.train_op = self.network.train()
+		self.cumCost, self.train_op, self.prob = self.network.train()
 		return self.layerOuts, self.weights, self.cumCost, self.train_op
 
 
@@ -47,19 +47,25 @@ class NeuralNetworkAgent(CNNLayers):
 			init_op = tf.group(tf.initialize_all_variables(), tf.initialize_local_variables())
 			init_op.run()
 
+			shuffData = inputData
+			shuffLabels = inputLabels
+			trainRange = range(0, numTrain)
 			for epoch in range(0, numEpochs):
+				random.shuffle(trainRange)
+				shuffData = inputData[trainRange,:,:,:]
+				shuffLabels = inputLabels[trainRange,:]
 				for i in range(0,numTrain, self.batch_size):
-					curBatch = inputData[i:i+ self.batch_size,:,:,:]
+					curBatch = inputData[range(i,i+ self.batch_size),:,:,:]
 					curLabels = inputLabels[i:i+ self.batch_size, :]
-					_, loss = sess.run([self.train_op,self.cumCost], feed_dict={self.inputTrainPos: curBatch,
+					_, loss, probList = sess.run([self.train_op,self.cumCost, self.prob], feed_dict={self.inputTrainPos: curBatch,
 																	self.trainLabel: curLabels})
-					print("The current iteration is {}".format(i))
-					print("The training loss of the current loss is: " + str(loss))
+					
+					if i%1000 == 0:
+						print("The current iteration is {}".format(i))
+						print("The training loss of the current loss is: " + str(loss))
+						print("This is the probabilities of the output layer: {}".format(probList))
 
 
-				c = list(zip(inputData, inputLabels))
-				random.shuffle(c)
-				inputData, inputLabels = zip(*c)
 				print("Completed epoch {}".format(epoch))
 
 			numCorrect = 0
@@ -111,6 +117,7 @@ class NeuralNetworkAgent(CNNLayers):
 
 		print("Extracting data from the input HDF5 File")
 		self.actions,self.states = (self.hdf5Rd).getData()
+		self.numExamples = self.actions.shape[0]
 		print(self.states.shape)
 		self.states = np.transpose(self.states, axes=[0,2,3,1])
 		actionsShape = self.actions.shape
@@ -119,10 +126,10 @@ class NeuralNetworkAgent(CNNLayers):
 		for i in range(0,actionsShape[0]):
 			self.encodedActions[i,self.actions[i]] = 1 
 
-		trainStatesBatch = self.states[:NUM_TRAIN,:,:,:]
-		trainLabelsBatch = self.encodedActions[:NUM_TRAIN,:]
+		trainStatesBatch = self.states[:NUM_TRAIN_LARGE,:,:,:]
+		trainLabelsBatch = self.encodedActions[:NUM_TRAIN_LARGE,:]
 		layerOuts, weights, cumCost, train_op = self.createPolicyAgent()
-		self.trainAgent(trainStatesBatch, trainLabelsBatch, NUM_TRAIN, 30)
+		self.trainAgent(trainStatesBatch, trainLabelsBatch,NUM_TRAIN_LARGE, 32)
 
 
 

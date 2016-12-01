@@ -67,9 +67,10 @@ class Layers(object):
             output = tf.clip_by_value(model_output, epsilon, 1 - epsilon)
             # Create logit of output
             output_logit = tf.log(output / (1 - output))
-            cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(model_output , Yint))
+            cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output_logit , Yint))
+            prob = tf.nn.softmax(output_logit, dim=-1, name=None)
 
-        return cost
+        return cost, prob 
 
     def minimization_function(self, cost, learning_rate, beta1, beta2, opt='Rmsprop'):
         train_op = None
