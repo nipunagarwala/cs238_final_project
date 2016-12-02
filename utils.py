@@ -41,8 +41,12 @@ def sgfWriter(actions, filename, boardSz=BOARD_SZ):
     count = 0
     for act in actions:
         currNode = sgf.Node(gtree, previous=None)
-        sgfAct = SGF_POS[act%BOARD_SZ]+SGF_POS[act/BOARD_SZ]
-        currNode.properties = {playColors[count]: [sgfAct]}
+
+        if act==PASS_ACTION:
+            currNode.properties = {playColors[count]: ['']}
+        elif act!=RESIGN_ACTION:
+            sgfAct = SGF_POS[act%BOARD_SZ]+SGF_POS[act/BOARD_SZ]
+            currNode.properties = {playColors[count]: [sgfAct]}
 
         prevNode.next = currNode
         currNode.previous = prevNode
@@ -304,8 +308,7 @@ def pachiGameRecorder(filename, verbose, playbyplay):
             printRocBoard(dummy2.rocEnv)
             exit(1)
 
-        if dummyPlaying.last_pachi_mv != RESIGN_ACTION:
-            actions.append(dummyPlaying.last_pachi_mv)
+        actions.append(dummyPlaying.last_pachi_mv)
 
     if verbose:
         gymEnv1.render()
@@ -316,18 +319,19 @@ def pachiGameRecorder(filename, verbose, playbyplay):
         print "Winner: %s" %('Black' if gymEnv1.state.board.official_score<0 else 'White')
         print "Score: %d" % gymEnv1.state.board.official_score
 
+    print actions
     sgfWriter(actions, filename)
 
 def pachi_game_Dump(num_games=1000):
     """
-    Runs pachiGameRecorder() 'num_games' times and dumps the result under pachi_games.hdf5
+    Runs pachiGameRecorder() 'num_games' times and dumps the result sgf files
     """
     filename = 'pachi_games/pachi_game_%d.sgf'
     for i in range(num_games):
         print i
         pachiGameRecorder(filename=filename%i, verbose=False,playbyplay=False)
-    sgf2hdf5('pachi_games.hdf5', 'pachi_games')
 
-#pachi_game_Dump(1000)
+#pachi_game_Dump(2000)
 #sgf2hdf5('featuresNew.hdf5', '../godata', boardSz=BOARD_SZ)
+#sgf2hdf5('featuresNew.hdf5', 'pachi_games', boardSz=BOARD_SZ)
 #hdf5Augment('featuresNew.hdf5', 'featuresNewAugment.hdf5')
