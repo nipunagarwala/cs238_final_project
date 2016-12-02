@@ -18,9 +18,12 @@ FEATURE_LIST = ["board", "ones", "turns_since", "liberties", "capture_size",
 #######################################################################
 
 BATCH_SIZE = 32
-NUM_LAYERS = 13
+NUM_LAYERS = 8
 DEPTH = 48
 NUM_ACTIONS = 81
-NUM_TRAIN_SMALL = 16512
-NUM_TRAIN_LARGE = 132288
-CNN_REG_CONSTANTS = [0.6]*NUM_LAYERS
+NUM_FILTERS = 128
+# NUM_TRAIN_SMALL = 16512
+# NUM_TRAIN_LARGE = 132288
+NUM_TRAIN_LARGE = 380160
+# CNN_REG_CONSTANTS = [0.6]*NUM_LAYERS
+CNN_REG_CONSTANTS = None

@@ -6,7 +6,7 @@ from layers import *
 
 
 class PolicyNetwork(CNNLayers):
-	def __init__(self,input_board, output, batch_size, num_filters, learning_rate=1e-3, beta1=0.99, beta2=0.99, lmbda = None, op='Rmsprop'):
+	def __init__(self,input_board, output, num_layers, batch_size, num_filters, learning_rate=1e-3, beta1=0.99, beta2=0.99, lmbda = None, op='Rmsprop'):
 		CNNLayers.__init__(self)
 		self.input = input_board
 		self.output = output
@@ -15,7 +15,7 @@ class PolicyNetwork(CNNLayers):
 		self.batch_size = batch_size
 		self.strides = [1,1,1,1]
 		self.filters = [3,3,num_filters, num_filters]
-		self.num_layers = 13
+		self.num_layers = num_layers
 		self.beta1 = beta1
 		self.beta2 = beta2
 		self.lmbda = lmbda
@@ -50,7 +50,7 @@ class PolicyNetwork(CNNLayers):
 		self.layersOut = layersOut
 		self.weights = weights
 		self.biases = biases
-		return self.layersOut, self.weights
+		return self.layersOut, self.weights, self.biases
 
 
 	def train(self):

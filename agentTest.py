@@ -6,19 +6,14 @@ from layers import *
 from hdf5Reader import *
 from constants import *
 import random 
-import NeuralNetworkAgent as NNA
+from NeuralNetworkAgent import *
 
 
 
 
 def main():
-	supervisedPolicyNetwork =  NNA.NeuralNetworkAgent(BATCH_SIZE)
-	supervisedPolicyNetwork.trainSupervisedNetwork('/data2/features_augmented.hdf5')
-
-
-
-
-
+	supervisedPolicyNetwork =  PolicyNetworkAgent(BATCH_SIZE)
+	supervisedPolicyNetwork.trainSupervisedNetwork('/data2/human700pachi500_augmented.hdf5')
 
 
 
