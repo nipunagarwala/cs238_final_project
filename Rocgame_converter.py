@@ -106,6 +106,9 @@ class game_converter:
                         if next_idx >= len(states):
                             states.resize((next_idx + 1, self.n_features, bd_size, bd_size))
                             actions.resize((next_idx + 1, 2))
+                        if move==(0, 9):
+                            print 'pass action ignored'
+                            continue
                         states[next_idx] = state
                         actions[next_idx] = move
                         n_pairs += 1
