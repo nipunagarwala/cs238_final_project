@@ -70,7 +70,8 @@ def sgf2hdf5(filename, sgfDir, boardSz=BOARD_SZ):
     @type   boardSz     :   int
     @param  boardSz     :   Size of the board. Defaults to 9.
     """
-    run_game_converter(['--outfile', filename, '--directory', sgfDir, '--size', str(boardSz), '--features', 'all'])
+    run_game_converter(['--outfile', filename, '--directory', sgfDir, '--size', str(boardSz),
+                        '--features', 'all', '--recurse'])
 
 def write2hdf5(filename, dict2store):
     """
@@ -241,7 +242,7 @@ def sgf2stateaction(filename, boardIndx, feature_list=FEATURE_LIST):
 
 import gym
 import pachi_py
-from rochesterWrappers import printRocBoard
+from rochesterWrappers import printRocBoard,returnRocBoard
 from NNGoPlayer import NNGoPlayer
 def pachiGameRecorder(filename, verbose, playbyplay):
     """
@@ -249,6 +250,7 @@ def pachiGameRecorder(filename, verbose, playbyplay):
     Stores the game as an sgf file with name 'filename'
     """
     actions = []
+    ff = ''
 
     # create 2 gym environments
     gymEnv1 = gym.make('Go9x9-v0')
@@ -265,27 +267,45 @@ def pachiGameRecorder(filename, verbose, playbyplay):
 
     # play out the game
     playBlack = True
+    dummy1.last_pachi_mv = PASS_ACTION
     dummy2.last_pachi_mv = PASS_ACTION
     while True:
         if playbyplay:
             printRocBoard(dummy1.rocEnv)
             printRocBoard(dummy2.rocEnv)
+        ff += 'Black playing' if playBlack else 'White playing'
+        ff += '\n'
+        ff += str(returnRocBoard(dummy1.rocEnv)).replace('0',' ').replace('.','')
+        ff += '\n'
+        ff += 'last move: %d' %dummy1.last_pachi_mv
+        ff += '\n'
+        ff += str(returnRocBoard(dummy2.rocEnv)).replace('0',' ').replace('.','')
+        ff += '\n'
+        ff += 'last move: %d' %dummy2.last_pachi_mv
+        ff += '\n'
+        ff += '\n'
+        ff += '\n'
 
         dummyPlaying = dummy1 if playBlack else dummy2
         dummyNotPlaying = dummy2 if playBlack else dummy1
         playBlack = not playBlack
 
+        if dummyNotPlaying.last_pachi_mv==PASS_ACTION:
+            print 'passed'
         try:
             if dummyPlaying.makemoveGym(move=dummyNotPlaying.last_pachi_mv, 
                                         playbyplay=playbyplay):
                 break
         except:
+            print ff
             gymEnv1.render()
             printRocBoard(dummy1.rocEnv)
             gymEnv2.render()
             printRocBoard(dummy2.rocEnv)
+            exit(1)
 
-        actions.append(dummyPlaying.last_pachi_mv)
+        if dummyPlaying.last_pachi_mv != RESIGN_ACTION:
+            actions.append(dummyPlaying.last_pachi_mv)
 
     if verbose:
         gymEnv1.render()
@@ -307,3 +327,7 @@ def pachi_game_Dump(num_games=1000):
         print i
         pachiGameRecorder(filename=filename%i, verbose=False,playbyplay=False)
     sgf2hdf5('pachi_games.hdf5', 'pachi_games')
+
+#pachi_game_Dump(1000)
+#sgf2hdf5('featuresNew.hdf5', '../godata', boardSz=BOARD_SZ)
+#hdf5Augment('featuresNew.hdf5', 'featuresNewAugment.hdf5')

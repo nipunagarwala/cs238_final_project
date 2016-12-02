@@ -28,7 +28,7 @@ def printRocBoard(rocEnv):
     print "0=empty, 1=black, 2=white"
     oneModifier = 1 if rocEnv.current_player==Rocgo.BLACK else 2
     twoModifier = 2 if rocEnv.current_player==Rocgo.BLACK else 1
-    print one*oneModifier + two*twoModifier
+    print str(one*oneModifier + two*twoModifier).replace('0',' ').replace('.','')
 
 def returnRocBoard(rocEnv):
     one = np.transpose(Preprocess(FEATURE_LIST).state_to_tensor(rocEnv)[0,0,:,:])

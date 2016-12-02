@@ -108,7 +108,7 @@ class NNGoPlayer(object):
         self.last_obs = pachiBoard
 
 
-    def makemoveGym(self, move=None, playbyplay=False):
+    def makemoveGym(self, move=-1, playbyplay=False):
         """
         Plays a move against Pachi.
         Advances both the gym environment and the Rochester gameboard.
@@ -120,7 +120,7 @@ class NNGoPlayer(object):
         state = rocBoard2State(self.rocEnv)
         self.states.append(state)
 
-        if not move:
+        if move==-1:
             move = self.nnMoveLogic(state)
         if playbyplay:
             print "Policy (%s) - %d" % ("Black" if self.color==NNGoPlayer.BLACK else "White", move)
