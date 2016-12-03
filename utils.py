@@ -248,11 +248,15 @@ import gym
 import pachi_py
 from rochesterWrappers import printRocBoard,returnRocBoard
 from NNGoPlayer import NNGoPlayer
-def pachiGameRecorder(filename, verbose, playbyplay):
+import sys
+from cStringIO import StringIO
+def pachiGameRecorder(filename, verbose=False, playbyplay=False):
     """
     Plays a game between two pachi players.
     Stores the game as an sgf file with name 'filename'
     """
+    if os.path.isfile(filename):
+       return
     actions = []
     ff = ''
 
@@ -281,9 +285,13 @@ def pachiGameRecorder(filename, verbose, playbyplay):
         ff += '\n'
         ff += str(returnRocBoard(dummy1.rocEnv)).replace('0',' ').replace('.','')
         ff += '\n'
+        ff += gymEnv1.state.board.__str__()
+        ff += '\n'
         ff += 'last move: %d' %dummy1.last_pachi_mv
         ff += '\n'
         ff += str(returnRocBoard(dummy2.rocEnv)).replace('0',' ').replace('.','')
+        ff += '\n'
+        ff += gymEnv2.state.board.__str__()
         ff += '\n'
         ff += 'last move: %d' %dummy2.last_pachi_mv
         ff += '\n'
@@ -311,27 +319,60 @@ def pachiGameRecorder(filename, verbose, playbyplay):
         actions.append(dummyPlaying.last_pachi_mv)
 
     if verbose:
+        # setup the environment
+        backup = sys.stdout
+        # ####
+        sys.stdout = StringIO()     # capture output
+        gymEnv1.step(PASS_ACTION)
         gymEnv1.render()
-        printRocBoard(dummy1.rocEnv)
+        out = sys.stdout.getvalue() # release output
+        gym1board = '\n'.join(out.split('\n')[2:])
+        # ####
+        sys.stdout.close()  # close the stream 
+        sys.stdout = backup # restore original stdout
+
+
+        # setup the environment
+        backup = sys.stdout
+        # ####
+        sys.stdout = StringIO()     # capture output
+        gymEnv2.step(PASS_ACTION)
         gymEnv2.render()
-        printRocBoard(dummy2.rocEnv)
-        print ""
-        print "Winner: %s" %('Black' if gymEnv1.state.board.official_score<0 else 'White')
-        print "Score: %d" % gymEnv1.state.board.official_score
+        out = sys.stdout.getvalue() # release output
+        gym2board = '\n'.join(out.split('\n')[2:])
+        # ####
+        sys.stdout.close()  # close the stream 
+        sys.stdout = backup # restore original stdout
+
+        if gym1board!=gym2board:
+            print ff
+            print gym1board
+            print gym2board
+            printRocBoard(dummy1.rocEnv)
+            printRocBoard(dummy2.rocEnv)
+
+            print ""
+            print "Winner: %s" %('Black' if gymEnv1.state.board.official_score<0 else 'White')
+            print "Score: %d" % gymEnv1.state.board.official_score
 
     print actions
     sgfWriter(actions, filename)
 
 def pachi_game_Dump(num_games=1000):
     """
-    Runs pachiGameRecorder() 'num_games' times and dumps the result sgf files
+    Runs pachiGameRecorder() 'num_games' times and dumps the resulting sgf files
     """
-    filename = 'pachi_games/pachi_game_%d.sgf'
-    for i in range(num_games):
-        print i
-        pachiGameRecorder(filename=filename%i, verbose=False,playbyplay=False)
+    from multiprocessing import Pool
 
-#pachi_game_Dump(2000)
-#sgf2hdf5('featuresNew.hdf5', '../godata', boardSz=BOARD_SZ)
+    filename = 'pachi_games3/pachi_game_%d.sgf'
+    p = Pool(4)
+    filenames = [filename%i for i in list(range(num_games))]
+    p.map(pachiGameRecorder,filenames)
+    # for i in range(num_games):
+    #     print i
+    #     pachiGameRecorder(filename=filename%i, verbose=True,playbyplay=False)
+
+#pachi_game_Dump(30000)
+#sgf2hdf5('pachi5000.hdf5', '../godata/pachi5000', boardSz=BOARD_SZ)
 #sgf2hdf5('featuresNew.hdf5', 'pachi_games', boardSz=BOARD_SZ)
-#hdf5Augment('featuresNew.hdf5', 'featuresNewAugment.hdf5')
+#hdf5Augment('pachi5000.hdf5', 'pachi5000Augment.hdf5')
