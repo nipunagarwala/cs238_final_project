@@ -24,7 +24,7 @@ class PolicyNetworkAgent(CNNLayers):
 		return X, Y
 
 	def createPolicyAgent(self):
-		inTrainShape = [None, BOARD_SZ, BOARD_SZ, DEPTH]
+		inTrainShape = [None, BOARD_SZ, BOARD_SZ, NUM_FEATURES]
 		outTrainShape = [None, NUM_ACTIONS]
 
 		print("Defining input and output placeholder variables")
@@ -32,7 +32,7 @@ class PolicyNetworkAgent(CNNLayers):
 
 		print("Creating Policy Network Model Object")
 		self.network = PolicyNetwork(self.inputTrainPos,self.trainLabel,NUM_LAYERS, self.batch_size, num_filters=NUM_FILTERS,
-								 learning_rate=1e-4, beta1=0.9, beta2=None, lmbda = CNN_REG_CONSTANTS, op='Rmsprop')
+								 learning_rate=1e-5, beta1=0.9, beta2=None, lmbda = CNN_REG_CONSTANTS, op='Rmsprop')
 		
 		print("Building the Policy Network Model")
 		self.layerOuts, self.weights, self.biases = self.network.build_model()
@@ -66,8 +66,9 @@ class PolicyNetworkAgent(CNNLayers):
 					if i%1000 == 0:
 						print("The current iteration is {}".format(i))
 						print("The training loss of the current loss is: " + str(loss))
-						print("This is the max probability of the output layer: {}".format(np.max(probList)))
-						print("This is the min probability of the output layer: {}".format(np.min(probList)))
+						print("The shape of the probability distribution is: {}".format( probList.shape))
+						print("This is the max probability of the output layer: {}".format(np.amax(probList, axis=1)))
+						print("This is the min probability of the output layer: {}".format(np.amin(probList, axis=1)))
 
 
 				print("Completed epoch {}".format(epoch))
@@ -137,7 +138,7 @@ class PolicyNetworkAgent(CNNLayers):
 		for i in range(0,actionsShape[0]):
 			self.encodedActions[i,self.actions[i]] = 1 
 
-		trainStatesBatch = self.states[:NUM_TRAIN_LARGE,:,:,:]
+		trainStatesBatch = self.states[:NUM_TRAIN_LARGE,:,:,:NUM_FEATURES]
 		trainLabelsBatch = self.encodedActions[:NUM_TRAIN_LARGE,:]
 		layerOuts, weights, biases, cumCost, train_op = self.createPolicyAgent()
 		self.trainAgent(trainStatesBatch, trainLabelsBatch,NUM_TRAIN_LARGE, 32)

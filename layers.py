@@ -52,6 +52,7 @@ class Layers(object):
 
     def cost_function(self, model_output, Y, op='square'):
         cost = None
+        prob = None
         if  op == 'square':
             cost = tf.reduce_mean(tf.square(tf.sub(model_output,Y)))
         elif op == 'sigmoid':

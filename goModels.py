@@ -3,6 +3,7 @@ import numpy as np
 from utils import *
 from utils import *
 from layers import *
+from constants import *
 
 
 class PolicyNetwork(CNNLayers):
@@ -30,7 +31,7 @@ class PolicyNetwork(CNNLayers):
 		layersOut['output'] = self.output
 		prev_layer = self.input
 		prev_shape = (prev_layer.get_shape().as_list())[1]
-		layersOut['layer1'], weights['w1'], biases['b1'] = self.conv_layer(self.input, [5,5,48, self.num_filters], self.strides, 'layer1',
+		layersOut['layer1'], weights['w1'], biases['b1'] = self.conv_layer(self.input, [5,5,NUM_FEATURES, self.num_filters], self.strides, 'layer1',
         											 			padding='SAME',if_relu = True, batchNorm = False)
 
 		for i in range(1,self.num_layers-1):
@@ -55,13 +56,21 @@ class PolicyNetwork(CNNLayers):
 
 	def train(self):
 		cost, prob = self.cost_function( self.layersOut['pred'], self.output, op='softmax')
+		eps = 1e-6
+		divResult = tf.div(tf.constant(1.0/81), tf.abs(tf.sub(tf.constant(1.0/81), prob)))
+		divNormResult = tf.clip_by_value(divResult,1e-8,100)
+		prob_l1Norm = tf.reduce_mean(divNormResult)
+		# prob_l1Norm = tf.mul(tf.constant(2.0),tf.reduce_mean(tf.square(tf.sub(tf.constant(1.0/81), prob)) ))
+		# cumCost = tf.add(cost,prob_l1Norm)
 		cumCost = cost
 		numEntries = len(self.weights)
 
 		if self.lmbda is not None:
 			weightVals = self.weights.values()
+			biasVals = self.biases.values()
 			for i in range(numEntries):
 				cumCost = self.add_regularization( cumCost, weightVals[i], self.lmbda[i], None, op='l2')
+				cumCost = self.add_regularization( cumCost, biasVals[i], self.lmbda[i], None, op='l2')
 
 		train_op = self.minimization_function(cumCost, self.learning_rate, self.beta1, self.beta2, self.op)
 		return cumCost, train_op, prob
