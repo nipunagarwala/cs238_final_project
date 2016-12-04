@@ -364,7 +364,7 @@ def pachi_game_Dump(num_games=1000):
     """
     from multiprocessing import Pool
 
-    filename = 'pachi_games3/pachi_game_%d.sgf'
+    filename = 'pachi_games4/pachi_game_%d.sgf'
     p = Pool(4)
     filenames = [filename%i for i in list(range(num_games))]
     p.map(pachiGameRecorder,filenames)
@@ -376,3 +376,10 @@ def pachi_game_Dump(num_games=1000):
 # sgf2hdf5('pachi30000.hdf5', '/data2/pachi30000', boardSz=BOARD_SZ)
 #sgf2hdf5('featuresNew.hdf5', 'pachi_games', boardSz=BOARD_SZ)
 #hdf5Augment('pachi5000.hdf5', 'pachi5000Augment.hdf5')
+#hdf5Augment('/data2/pachi30000_1.hdf5', 'pachi30000_1_Augment.hdf5')
+#hdf5Augment('/data2/pachi30000_2.hdf5', 'pachi30000_2_Augment.hdf5')
+#hdf5Augment('/data2/pachi30000_3.hdf5', 'pachi30000_3_Augment.hdf5')
+#hdf5Augment('/data2/pachi30000_4.hdf5', 'pachi30000_4_Augment.hdf5')
+#hdf5Augment('/data2/pachi30000_5.hdf5', 'pachi30000_5_Augment.hdf5')
+#hdf5Augment('/data2/pachi30000_6.hdf5', 'pachi30000_6_Augment.hdf5')
+
