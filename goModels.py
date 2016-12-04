@@ -55,7 +55,7 @@ class PolicyNetwork(CNNLayers):
 
 
 	def train(self):
-		cost, prob = self.cost_function( self.layersOut['pred'], self.output, op='softmax')
+		cost, prob = self.cost_function( self.layersOut['pred'], self.output, op='log-likelihood')
 		eps = 1e-6
 		divResult = tf.div(tf.constant(1.0/81), tf.abs(tf.sub(tf.constant(1.0/81), prob)))
 		divNormResult = tf.clip_by_value(divResult,1e-8,100)

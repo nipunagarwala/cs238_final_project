@@ -70,6 +70,23 @@ class Layers(object):
             output_logit = tf.log(output / (1 - output))
             cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output_logit , Yint))
             prob = tf.nn.softmax(output_logit, dim=-1, name=None)
+        elif op == 'log-likelihood':
+            Yint = tf.to_int32(Y, name='ToInt64')
+            epsilon = 10e-6
+            output = tf.clip_by_value(model_output, epsilon, 1 - epsilon)
+            # Create logit of output
+            output_logit = tf.log(output / (1 - output))
+            prob = tf.nn.softmax(output_logit, dim=-1, name=None)
+            actionLabels = tf.mul(prob, Y)
+            sumRes = tf.reduce_sum(actionLabels, 1)
+            actionLikelihood = tf.reduce_mean(sumRes)
+            cost = tf.clip_by_value(tf.sub(tf.constant(0.0), tf.log(actionLikelihood)),epsilon ,1e6)
+
+
+            # cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output_logit , Yint))
+            # cost = tf.reduce_mean(tf.sub(tf.constant(0),tf.log(cost)))
+            # prob = tf.nn.softmax(output_logit, dim=-1, name=None)
+
 
         return cost, prob 
 
@@ -81,6 +98,8 @@ class Layers(object):
             train_op = tf.train.AdamOptimizer(learning_rate, beta1, beta2).minimize(cost)
         elif opt == 'adagrad':
             train_op = tf.train.AdagradOptimizer(learning_rate, initial_accumulator_value=0.1).minimize(cost)
+        elif opt == 'sgd':
+            train_op = tf.train.GradientDescentOptimizer(learning_rate)
 
         return train_op
 

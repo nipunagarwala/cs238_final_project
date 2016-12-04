@@ -95,7 +95,11 @@ class game_converter:
                 print("created HDF5 dataset in {}".format(tmp_file))
 
             next_idx = 0
+            count=0
             for file_name in sgf_files:
+                if count%500==0:
+                    print count
+		count += 1
                 if verbose:
                     print(file_name)
                 # count number of state/action pairs yielded by this game

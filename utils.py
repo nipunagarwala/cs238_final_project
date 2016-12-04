@@ -373,6 +373,6 @@ def pachi_game_Dump(num_games=1000):
     #     pachiGameRecorder(filename=filename%i, verbose=True,playbyplay=False)
 
 #pachi_game_Dump(30000)
-#sgf2hdf5('pachi5000.hdf5', '../godata/pachi5000', boardSz=BOARD_SZ)
+# sgf2hdf5('pachi30000.hdf5', '/data2/pachi30000', boardSz=BOARD_SZ)
 #sgf2hdf5('featuresNew.hdf5', 'pachi_games', boardSz=BOARD_SZ)
 #hdf5Augment('pachi5000.hdf5', 'pachi5000Augment.hdf5')

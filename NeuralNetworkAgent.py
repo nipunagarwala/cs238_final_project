@@ -32,7 +32,7 @@ class PolicyNetworkAgent(CNNLayers):
 
 		print("Creating Policy Network Model Object")
 		self.network = PolicyNetwork(self.inputTrainPos,self.trainLabel,NUM_LAYERS, self.batch_size, num_filters=NUM_FILTERS,
-								 learning_rate=1e-5, beta1=0.9, beta2=None, lmbda = CNN_REG_CONSTANTS, op='Rmsprop')
+								 learning_rate=1e-4, beta1=0.9, beta2=None, lmbda = CNN_REG_CONSTANTS, op='Rmsprop')
 		
 		print("Building the Policy Network Model")
 		self.layerOuts, self.weights, self.biases = self.network.build_model()
@@ -75,13 +75,13 @@ class PolicyNetworkAgent(CNNLayers):
 
 			numCorrect = 0
 			numIncorrect = 0
-			for i in range(0,numTrain):
-				curBatch = inputData[i,:,:,:]
-				curLabels = inputLabels[i, :]
+			for i in range(0,numTrain,self.batch_size):
+				curBatch = inputData[range(i,i+ self.batch_size),:,:,:]
+				curLabels = inputLabels[range(i,i+ self.batch_size), :]
 				pyx, loss = sess.run([self.layerOuts['pred'], self.cumCost], feed_dict={self.inputTrainPos: curBatch,
 																self.trainLabel: curLabels})
 				print("The current test iteration is: {}".format(i))
-				prediction = tf.argmax(pyx)
+				prediction = tf.argmax(pyx, 1)
 				realOutput = np.where(curLabels == 1)[0]
 				if prediction == realOutput:
 					numCorrect +=1 
@@ -102,7 +102,7 @@ class PolicyNetworkAgent(CNNLayers):
 				init_op = tf.group(tf.initialize_all_variables(), tf.initialize_local_variables())
 				init_op.run()
 
-			for i in range(0,numTest):
+			for i in range(0,numTest,):
 				curBatch = inputData[i,:,:,:]
 				curLabels = inputLabels[i, :]
 				pyx, loss = sess.run([self.layersOut['pred'], self.cumCost], feed_dict={self.inputTrainPos: curBatch,
@@ -141,7 +141,7 @@ class PolicyNetworkAgent(CNNLayers):
 		trainStatesBatch = self.states[:NUM_TRAIN_LARGE,:,:,:NUM_FEATURES]
 		trainLabelsBatch = self.encodedActions[:NUM_TRAIN_LARGE,:]
 		layerOuts, weights, biases, cumCost, train_op = self.createPolicyAgent()
-		self.trainAgent(trainStatesBatch, trainLabelsBatch,NUM_TRAIN_LARGE, 32)
+		self.trainAgent(trainStatesBatch, trainLabelsBatch,NUM_TRAIN_LARGE, NUM_EPOCHS)
 
 	def updateWeights(self, updatedWeights, updatedBiases):
 		with tf.Session() as sess:

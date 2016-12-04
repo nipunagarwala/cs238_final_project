@@ -13,7 +13,7 @@ from NeuralNetworkAgent import *
 
 def main():
 	supervisedPolicyNetwork =  PolicyNetworkAgent(BATCH_SIZE)
-	supervisedPolicyNetwork.trainSupervisedNetwork('/data2/pachi5000Augment.hdf5')
+	supervisedPolicyNetwork.trainSupervisedNetwork('/data2/human450.hdf5')
 
 
 
