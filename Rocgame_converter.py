@@ -67,92 +67,101 @@ class game_converter:
 
         # make a hidden temporary file in case of a crash.
         # on success, this is renamed to hdf5_file
-        tmp_file = os.path.join(os.path.dirname(hdf5_file), ".tmp." + os.path.basename(hdf5_file))
-        h5f = h5.File(tmp_file, 'w')
 
-        try:
-            # see http://docs.h5py.org/en/latest/high/group.html#Group.create_dataset
-            states = h5f.require_dataset(
-                'states',
-                dtype=np.uint8,
-                shape=(1, self.n_features, bd_size, bd_size),
-                maxshape=(None, self.n_features, bd_size, bd_size),  # 'None' == arbitrary size
-                exact=False,  # allow non-uint8 datasets to be loaded, coerced to uint8
-                chunks=(64, self.n_features, bd_size, bd_size),  # approximately 1MB chunks
-                compression="lzf")
-            actions = h5f.require_dataset(
-                'actions',
-                dtype=np.uint8,
-                shape=(1, 2),
-                maxshape=(None, 2),
-                exact=False,
-                chunks=(1024, 2),
-                compression="lzf")
-            # 'file_offsets' is an HDF5 group so that 'file_name in file_offsets' is fast
-            file_offsets = h5f.require_group('file_offsets')
+
+        counter = 0
+        iter_num = 0
+        batch_sz = 5000
+        sgf_files_list = []
+        for sgf in sgf_files:
+            sgf_files_list.append(sgf)
+        while counter<len(sgf_files_list):
+            print 'Iteration #%d' %iter_num
+
+            tmp_file = os.path.join(os.path.dirname(hdf5_file), ".tmp." + os.path.basename(hdf5_file))
+            h5f = h5.File(tmp_file, 'w')
+
+            try:
+                # see http://docs.h5py.org/en/latest/high/group.html#Group.create_dataset
+                states = h5f.require_dataset(
+                    'states',
+                    dtype=np.uint8,
+                    shape=(1, self.n_features, bd_size, bd_size),
+                    maxshape=(None, self.n_features, bd_size, bd_size),  # 'None' == arbitrary size
+                    exact=False,  # allow non-uint8 datasets to be loaded, coerced to uint8
+                    chunks=(64, self.n_features, bd_size, bd_size),  # approximately 1MB chunks
+                    compression="lzf")
+                actions = h5f.require_dataset(
+                    'actions',
+                    dtype=np.uint8,
+                    shape=(1, 2),
+                    maxshape=(None, 2),
+                    exact=False,
+                    chunks=(1024, 2),
+                    compression="lzf")
+                # 'file_offsets' is an HDF5 group so that 'file_name in file_offsets' is fast
+                file_offsets = h5f.require_group('file_offsets')
+
+                if verbose:
+                    print("created HDF5 dataset in {}".format(tmp_file))
+
+                next_idx = 0
+                for i in xrange(iter_num*batch_sz, min(len(sgf_files_list),batch_sz*(iter_num+1))):
+                    file_name = sgf_files_list[i]
+                    counter += 1
+                    if counter%500==0:
+                        print counter
+                    if verbose:
+                        print(file_name)
+                    # count number of state/action pairs yielded by this game
+                    n_pairs = 0
+                    file_start_idx = next_idx
+                    try:
+                        for state, move in self.convert_game(file_name, bd_size):
+                            if next_idx >= len(states):
+                                states.resize((next_idx + 1, self.n_features, bd_size, bd_size))
+                                actions.resize((next_idx + 1, 2))
+                            states[next_idx] = state
+                            actions[next_idx] = move
+                            n_pairs += 1
+                            next_idx += 1
+                    except go.IllegalMove:
+                        warnings.warn("Illegal Move encountered in %s\n"
+                                      "\tdropping the remainder of the game" % file_name)
+                    except sgf.ParseException:
+                        warnings.warn("Could not parse %s\n\tdropping game" % file_name)
+                    except SizeMismatchError:
+                        warnings.warn("Skipping %s; wrong board size" % file_name)
+                    except Exception as e:
+                        # catch everything else
+                        if ignore_errors:
+                            warnings.warn("Unkown exception with file %s\n\t%s" % (file_name, e),
+                                          stacklevel=2)
+                        else:
+                            raise e
+                    finally:
+                        if n_pairs > 0:
+                            # '/' has special meaning in HDF5 key names, so they
+                            # are replaced with ':' here
+                            file_name_key = file_name.replace('/', ':')
+                            file_offsets[file_name_key] = [file_start_idx, n_pairs]
+                            if verbose:
+                                print("\t%d state/action pairs extracted" % n_pairs)
+                        elif verbose:
+                            print("\t-no usable data-")
+            except Exception as e:
+                print("sgfs_to_hdf5 failed")
+                os.remove(tmp_file)
+                raise e
 
             if verbose:
-                print("created HDF5 dataset in {}".format(tmp_file))
+                print("finished. renaming %s to %s" % (tmp_file, hdf5_file))
 
-            next_idx = 0
-            count=0
-            for file_name in sgf_files:
-                if count%500==0:
-                    print count
-		count += 1
-                if verbose:
-                    print(file_name)
-                # count number of state/action pairs yielded by this game
-                n_pairs = 0
-                file_start_idx = next_idx
-                try:
-                    for state, move in self.convert_game(file_name, bd_size):
-                        if next_idx >= len(states):
-                            states.resize((next_idx + 1, self.n_features, bd_size, bd_size))
-                            actions.resize((next_idx + 1, 2))
-                        if move==(0, 9):
-                            print 'pass action ignored'
-                            continue
-                        states[next_idx] = state
-                        actions[next_idx] = move
-                        n_pairs += 1
-                        next_idx += 1
-                except go.IllegalMove:
-                    warnings.warn("Illegal Move encountered in %s\n"
-                                  "\tdropping the remainder of the game" % file_name)
-                except sgf.ParseException:
-                    warnings.warn("Could not parse %s\n\tdropping game" % file_name)
-                except SizeMismatchError:
-                    warnings.warn("Skipping %s; wrong board size" % file_name)
-                except Exception as e:
-                    # catch everything else
-                    if ignore_errors:
-                        warnings.warn("Unkown exception with file %s\n\t%s" % (file_name, e),
-                                      stacklevel=2)
-                    else:
-                        raise e
-                finally:
-                    if n_pairs > 0:
-                        # '/' has special meaning in HDF5 key names, so they
-                        # are replaced with ':' here
-                        file_name_key = file_name.replace('/', ':')
-                        file_offsets[file_name_key] = [file_start_idx, n_pairs]
-                        if verbose:
-                            print("\t%d state/action pairs extracted" % n_pairs)
-                    elif verbose:
-                        print("\t-no usable data-")
-        except Exception as e:
-            print("sgfs_to_hdf5 failed")
-            os.remove(tmp_file)
-            raise e
-
-        if verbose:
-            print("finished. renaming %s to %s" % (tmp_file, hdf5_file))
-
-        # processing complete; rename tmp_file to hdf5_file
-        h5f.close()
-        os.rename(tmp_file, hdf5_file)
-
+            # processing complete; rename tmp_file to hdf5_file
+            h5f.close()
+            h5split = hdf5_file.split('.')
+            os.rename(tmp_file, h5split[0]+'_'+str(iter_num)+'.'+h5split[1])
+            iter_num += 1
 
 def run_game_converter(cmd_line_args=None):
     """Run conversions. command-line args may be passed in as a list
