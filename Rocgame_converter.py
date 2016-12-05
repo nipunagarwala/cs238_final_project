@@ -39,7 +39,7 @@ class game_converter:
                 nn_input = self.feature_processor.state_to_tensor(state)
                 yield (nn_input, move)
 
-    def sgfs_to_hdf5(self, sgf_files, hdf5_file, bd_size=19, ignore_errors=True, verbose=False):
+    def sgfs_to_hdf5(self, sgf_files, hdf5_file, skip_first_n_moves, bd_size=19, ignore_errors=True, verbose=False):
         """Convert all files in the iterable sgf_files into an hdf5 group to be stored in hdf5_file
 
         Arguments:
@@ -115,16 +115,30 @@ class game_converter:
                         print(file_name)
                     # count number of state/action pairs yielded by this game
                     n_pairs = 0
+                    count = 0
                     file_start_idx = next_idx
                     try:
+                        state_arr = []
+                        move_arr = []
                         for state, move in self.convert_game(file_name, bd_size):
+                            state_arr.append(state)
+                            move_arr.append(move)
+                        if len(state_arr)<skip_first_n_moves:
+                            print 'game too short, skipping...'
+                            continue
+
+                        for state, move in zip(state_arr,move_arr):
                             if next_idx >= len(states):
                                 states.resize((next_idx + 1, self.n_features, bd_size, bd_size))
                                 actions.resize((next_idx + 1, 2))
-                            states[next_idx] = state
-                            actions[next_idx] = move
-                            n_pairs += 1
-                            next_idx += 1
+
+                            if count>skip_first_n_moves:
+                                states[next_idx] = state
+                                actions[next_idx] = move
+                                n_pairs += 1
+                                next_idx += 1
+                            count += 1
+
                     except go.IllegalMove:
                         warnings.warn("Illegal Move encountered in %s\n"
                                       "\tdropping the remainder of the game" % file_name)
@@ -180,6 +194,7 @@ def run_game_converter(cmd_line_args=None):
     parser.add_argument("--directory", "-d", help="Directory containing SGF files to process. if not present, expects files from stdin", default=None)  # noqa: E501
     parser.add_argument("--size", "-s", help="Size of the game board. SGFs not matching this are discarded with a warning", type=int, default=19)  # noqa: E501
     parser.add_argument("--verbose", "-v", help="Turn on verbose mode", default=False, action="store_true")  # noqa: E501
+    parser.add_argument("--skip", "-S", help="Skip first N steps of a game", type=int, default=0)  # noqa: E501
 
     if cmd_line_args is None:
         args = parser.parse_args()
@@ -234,7 +249,7 @@ def run_game_converter(cmd_line_args=None):
     else:
         files = (f.strip() for f in sys.stdin if _is_sgf(f))
 
-    converter.sgfs_to_hdf5(files, args.outfile, bd_size=args.size, verbose=args.verbose)
+    converter.sgfs_to_hdf5(files, args.outfile, args.skip, bd_size=args.size, verbose=args.verbose)
 
 
 if __name__ == '__main__':

@@ -4,6 +4,7 @@ import numpy as np
 from Rocgame_converter import *
 import Rocgo as go
 from constants import *
+import math
 
 # constants
 # map from numerical coordinates to letters used by SGF
@@ -105,6 +106,28 @@ def hdf52dict(hdf5Filename):
 
     return retDict
 
+def hdf5FixAction(infilename, outfilename):
+    dic = hdf52dict(infilename)
+
+    states = []
+    actions = []
+    for i in range(dic['states'].shape[0]):
+        states.append(dic['states'][i,:,:,:])
+        actions.append(dic['actions'][i,0]+dic['actions'][i,0]*BOARD_SZ)
+
+    write2hdf5(outfilename, {'states':states, 'actions':actions})
+
+def reducePachi(pachiFile, outfilename, num2reduce):
+    dic = hdf52dict(pachiFile)
+
+    states = []
+    actions = []
+    for i in range(num2reduce):
+        states.append(dic['states'][i,:,:,:])
+        actions.append(dic['actions'][i])
+
+    write2hdf5(outfilename, {'states':states, 'actions':actions})
+
 def perLayerOp(mat, opFunc):
     """
     Assumes that mat is a 3D numpy matrix, and applies the function specified 
@@ -116,7 +139,8 @@ def perLayerOp(mat, opFunc):
 
     return retMat
 
-def hdf5Augment(filename, outfilename):
+from rochesterWrappers import *
+def hdf5Augment(filename, outfilename, verbose=False):
     """
     Augments the games stored in filename by rotating and reflecting the states.
 
@@ -155,8 +179,28 @@ def hdf5Augment(filename, outfilename):
         states.append(state180Ref)
         states.append(state270Ref)
 
+        if verbose:
+            printNPYstate(state0)
+            printNPYstate(state90)
+            printNPYstate(state180)
+            printNPYstate(state270)
+            printNPYstate(state0Ref)
+            printNPYstate(state90Ref)
+            printNPYstate(state180Ref)
+            printNPYstate(state270Ref)
+
         actionBoard = np.zeros((BOARD_SZ,BOARD_SZ))
-        actionBoard[oriActs[i][0],oriActs[i][1]] = 1
+        if len(oriActs.shape)==1:
+            if verbose:
+                print oriActs[i]%BOARD_SZ
+                print int(float(oriActs[i])/BOARD_SZ)
+            actionBoard[oriActs[i]%BOARD_SZ,oriActs[i]/BOARD_SZ] = 1
+        else:
+            if verbose:
+                print oriActs[i][0]
+                print oriActs[i][1]
+            actionBoard[oriActs[i][0],oriActs[i][1]] = 1
+
         actionBoard90 = np.rot90(actionBoard).copy()
         actionBoard180 = np.rot90(actionBoard90).copy()
         actionBoard270 = np.rot90(actionBoard180).copy()
@@ -167,22 +211,78 @@ def hdf5Augment(filename, outfilename):
 
         oneLoc = np.where(actionBoard)
         actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        if verbose:
+            print oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ
+            print(str(np.transpose(actionBoard)).replace('0',' ').replace('.',''))
+
         oneLoc = np.where(actionBoard90)
         actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        if verbose:
+            print oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ
+            print(str(np.transpose(actionBoard90)).replace('0',' ').replace('.',''))
+
         oneLoc = np.where(actionBoard180)
         actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        if verbose:
+            print oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ
+            print(str(np.transpose(actionBoard180)).replace('0',' ').replace('.',''))
+
         oneLoc = np.where(actionBoard270)
         actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        if verbose:
+            print oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ
+            print(str(np.transpose(actionBoard270)).replace('0',' ').replace('.',''))
+
         oneLoc = np.where(actionBoard0Ref)
         actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        if verbose:
+            print oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ
+            print(str(np.transpose(actionBoard0Ref)).replace('0',' ').replace('.',''))
+
         oneLoc = np.where(actionBoard90Ref)
         actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        if verbose:
+            print oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ
+            print(str(np.transpose(actionBoard90Ref)).replace('0',' ').replace('.',''))
+
         oneLoc = np.where(actionBoard180Ref)
         actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        if verbose:
+            print oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ
+            print(str(np.transpose(actionBoard180Ref)).replace('0',' ').replace('.',''))
+
         oneLoc = np.where(actionBoard270Ref)
         actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        if verbose:
+            print oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ
+            print(str(np.transpose(actionBoard270Ref)).replace('0',' ').replace('.',''))
 
     write2hdf5(outfilename, {'states':states, 'actions':actions})
+
+reducePachi('/data/go/pachi5000_skip20_actionFixed.hdf5', '/data/go/pachi5000_skip_20_pos_15000_actionFixed.hdf5', 15000)
+# hdf5Augment('/data/go/pachi5000_skip_20_pos_15000_actionFixed.hdf5', '/data/go/pachi5000_skip_20_pos_15000_augmented.hdf5')
+
+# reducePachi('/data/go/pachi5000_skip20_actionFixed.hdf5', '/data/go/pachi5000_skip_20_pos_30000_actionFixed.hdf5', 30000)
+# hdf5Augment('/data/go/pachi5000_skip_20_pos_30000_actionFixed.hdf5', '/data/go/pachi5000_skip_20_pos_30000_augmented.hdf5')
+
+# reducePachi('/data/go/pachi5000_skip20_actionFixed.hdf5', '/data/go/pachi5000_skip_20_pos_60000_actionFixed.hdf5', 60000)
+# hdf5Augment('/data/go/pachi5000_skip_20_pos_60000_actionFixed.hdf5', '/data/go/pachi5000_skip_20_pos_60000_augmented.hdf5')
+
+# reducePachi('/data/go/pachi5000_skip20_actionFixed.hdf5', '/data/go/pachi5000_skip_20_pos_120000_actionFixed.hdf5', 120000)
+# hdf5Augment('/data/go/pachi5000_skip_20_pos_120000_actionFixed.hdf5', '/data/go/pachi5000_skip_20_pos_120000_augmented.hdf5')
+
+
+# reducePachi('/data/go/pachi5000_actionFixed.hdf5', '/data/go/pachi5000_pos_15000_actionFixed.hdf5', 15000)
+# hdf5Augment('/data/go/pachi5000_pos_15000_actionFixed.hdf5', '/data/go/pachi5000_pos_15000_augmented.hdf5')
+
+# reducePachi('/data/go/pachi5000_actionFixed.hdf5', '/data/go/pachi5000_pos_30000_actionFixed.hdf5', 30000)
+# hdf5Augment('/data/go/pachi5000_pos_30000_actionFixed.hdf5', '/data/go/pachi5000_pos_30000_augmented.hdf5')
+
+# reducePachi('/data/go/pachi5000_actionFixed.hdf5', '/data/go/pachi5000_pos_60000_actionFixed.hdf5', 60000)
+# hdf5Augment('/data/go/pachi5000_pos_60000_actionFixed.hdf5', '/data/go/pachi5000_pos_60000_augmented.hdf5')
+
+# reducePachi('/data/go/pachi5000_actionFixed.hdf5', '/data/go/pachi5000_pos_120000_actionFixed.hdf5', 120000)
+# hdf5Augment('/data/go/pachi5000_pos_120000_actionFixed.hdf5', '/data/go/pachi5000_pos_120000_augmented.hdf5')
 
 def sgf2stateaction(filename, boardIndx, feature_list=FEATURE_LIST):
     """
@@ -364,7 +464,7 @@ def pachi_game_Dump(num_games=1000):
     """
     from multiprocessing import Pool
 
-    filename = 'pachi_games4/pachi_game_%d.sgf'
+    filename = 'pachi_games3/pachi_game_%d.sgf'
     p = Pool(4)
     filenames = [filename%i for i in list(range(num_games))]
     p.map(pachiGameRecorder,filenames)
@@ -372,14 +472,8 @@ def pachi_game_Dump(num_games=1000):
     #     print i
     #     pachiGameRecorder(filename=filename%i, verbose=True,playbyplay=False)
 
+
 #pachi_game_Dump(30000)
-# sgf2hdf5('pachi30000.hdf5', '/data2/pachi30000', boardSz=BOARD_SZ)
+#sgf2hdf5('pachi30000.hdf5', '/data2/pachi30000', boardSz=BOARD_SZ)
 #sgf2hdf5('featuresNew.hdf5', 'pachi_games', boardSz=BOARD_SZ)
 #hdf5Augment('pachi5000.hdf5', 'pachi5000Augment.hdf5')
-#hdf5Augment('/data2/pachi30000_1.hdf5', 'pachi30000_1_Augment.hdf5')
-#hdf5Augment('/data2/pachi30000_2.hdf5', 'pachi30000_2_Augment.hdf5')
-#hdf5Augment('/data2/pachi30000_3.hdf5', 'pachi30000_3_Augment.hdf5')
-#hdf5Augment('/data2/pachi30000_4.hdf5', 'pachi30000_4_Augment.hdf5')
-#hdf5Augment('/data2/pachi30000_5.hdf5', 'pachi30000_5_Augment.hdf5')
-#hdf5Augment('/data2/pachi30000_6.hdf5', 'pachi30000_6_Augment.hdf5')
-

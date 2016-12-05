@@ -30,6 +30,13 @@ def printRocBoard(rocEnv):
     twoModifier = 2 if rocEnv.current_player==Rocgo.BLACK else 1
     print str(one*oneModifier + two*twoModifier).replace('0',' ').replace('.','')
 
+def printNPYstate(state):
+    one = np.transpose(state[0,:,:])
+    two = np.transpose(state[1,:,:])
+    print "Numpy Board"
+    print "0=empty, 1=you, 2=opponent"
+    print str(one + 2*two).replace('0',' ').replace('.','')
+
 def returnRocBoard(rocEnv):
     one = np.transpose(Preprocess(FEATURE_LIST).state_to_tensor(rocEnv)[0,0,:,:])
     two = np.transpose(Preprocess(FEATURE_LIST).state_to_tensor(rocEnv)[0,1,:,:])
