@@ -71,7 +71,7 @@ class game_converter:
 
         counter = 0
         iter_num = 0
-        batch_sz = 5000
+        batch_sz = 10005
         sgf_files_list = []
         for sgf in sgf_files:
             sgf_files_list.append(sgf)
