@@ -14,7 +14,7 @@ class MCNode(object):
     """
 
     nVl = 3     # "virtual loss"
-    nThr = 2   # expansion threshold
+    nThr = 1   # expansion threshold
     lmbda = 0.5 # value score/rollout score mixing constant
     beta = 0.67 # prior softmax constant
     cpuct = 5   # exploration term
@@ -55,11 +55,11 @@ class MCNode(object):
         self.Wr[act] += gameResult
         self.Wv[act] += vAtLeaf
 
-        self.Q[act] = (1-MCNode.lmbda)*self.Wv[act]/self.Nv[act] + MCNode.lmbda*self.Wr[act]/self.Nr[act] 
+        self.Q[act] = (1-MCNode.lmbda)*self.Wv[act]/self.Nv[act] \
+                        + MCNode.lmbda*self.Wr[act]/self.Nr[act] 
 
         # expand
         if self.Nr[act]==MCNode.nThr:
-            print "expanding a node..."
             self.expand(act)
 
     def expand(self, act):
@@ -80,8 +80,9 @@ class MCNode(object):
         repStr += str(self.Wv)+'\n'
         repStr += 'Wr:\n'
         repStr += str(self.Wr)+'\n'
-        repStr += 'Q:\n'
-        repStr += str(self.Q)+'\n'
+        if hasattr(self,'Q'):
+            repStr += 'Q:\n'
+            repStr += str(self.Q)+'\n'
         repStr += 'prior:\n'
         repStr += str(self.prior)+'\n'
         return repStr
@@ -101,12 +102,13 @@ def reachLeaf(root, board, playbyplay=False):
             currNode.setLegalMoves(board)
 
         # choose an action
-        act = None
+        act = -1
         u_num = MCNode.cpuct*currNode.P*math.sqrt(sum(currNode.Nr))
         for i in range(currNode.actionSpace):
             u = u_num/(1+currNode.Nr[i])
             val = currNode.Q[i]+u
-            if not act or maxVal<val:
+
+            if act==-1 or maxVal<val:
                 act = i
                 maxVal = val
 
@@ -125,7 +127,7 @@ def reachLeaf(root, board, playbyplay=False):
 def getVAtLeaf(value_nnModel, state):
     # TODO
     # get value at a state using the NN Model
-    return 0.5
+    return 0.1
 
 def rollout_makemove(state):
     return 1
@@ -157,7 +159,7 @@ def update(nodes, acts, result, vAtLeaf):
         node.update(act, result, vAtLeaf)
 
 def MCTreeSearch(searchNum, state, color, sl_nnModel, rolloutModel, value_nnModel, verbose=False, playbyplay=False):
-    root = MCNode(1, Rocgo.WHITE if color==Rocgo.BLACK else Rocgo.BLACK, sl_nnModel)
+    root = MCNode(1, Rocgo.BLACK, sl_nnModel)
 
     # expand out the nodes for the first move
     for i in range(BOARD_SZ**2+1):
@@ -178,12 +180,18 @@ def MCTreeSearch(searchNum, state, color, sl_nnModel, rolloutModel, value_nnMode
         vAtLeaf = getVAtLeaf(value_nnModel, rocBoard2State(board))
 
         # play the rest of the game
+        printRocBoard(board)
+        print ''
         result = playout(rolloutModel, board, verbose=verbose)
+        printRocBoard(board)
 
         update(nodes, acts, result, vAtLeaf)
 
     print 'Done with MCTS'
-    print root
+    #print root
 
     # choose the best Q
     return np.argmax(np.asarray(root.Q))
+
+#rocEnv = initRocBoard()
+#MCTreeSearch(2, rocEnv, Rocgo.BLACK, None, None, None)

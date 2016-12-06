@@ -4,6 +4,8 @@ import numpy as np
 from Rocgame_converter import *
 import Rocgo as go
 from constants import *
+import math
+from multiprocessing import Pool
 
 # constants
 # map from numerical coordinates to letters used by SGF
@@ -63,7 +65,7 @@ def sgfWriter(actions, filename, boardSz=BOARD_SZ):
     with open(filename, "w") as f:
         sgfCollector.output(f)
 
-def sgf2hdf5(filename, sgfDir, boardSz=BOARD_SZ):
+def sgf2hdf5(filename, sgfDir, skip=0, boardSz=BOARD_SZ):
     """
     Converts sgf files to an hdf5 file
 
@@ -75,7 +77,7 @@ def sgf2hdf5(filename, sgfDir, boardSz=BOARD_SZ):
     @param  boardSz     :   Size of the board. Defaults to 9.
     """
     run_game_converter(['--outfile', filename, '--directory', sgfDir, '--size', str(boardSz),
-                        '--features', 'all', '--recurse'])
+                        '--features', 'all', '--recurse', '--skip', str(skip)])
 
 def write2hdf5(filename, dict2store):
     """
@@ -105,6 +107,34 @@ def hdf52dict(hdf5Filename):
 
     return retDict
 
+def hdf5FixAction(infilename):
+    dic = hdf52dict(infilename)
+
+    states = []
+    actions = []
+    for i in range(dic['states'].shape[0]):
+        states.append(dic['states'][i,:,:,:])
+        actions.append(dic['actions'][i,0]+dic['actions'][i,1]*BOARD_SZ)
+
+    infileList = infilename.split('.')
+    write2hdf5(infileList[0]+'_actionFixed.'+infileList[1], {'states':states, 'actions':actions})
+
+def reducePachi(pachiFile, outfilename, num2reduce):
+    if type(pachiFile)==str:
+        dic = hdf52dict(pachiFile)
+    else:
+        dic = pachiFile
+
+    states = []
+    actions = []
+    for i in range(num2reduce):
+        states.append(dic['states'][i,:,:,:])
+        actions.append(dic['actions'][i])
+
+    write2hdf5(outfilename, {'states':states, 'actions':actions})
+
+    return {'states':np.array(states), 'actions':np.array(actions)}
+
 def perLayerOp(mat, opFunc):
     """
     Assumes that mat is a 3D numpy matrix, and applies the function specified 
@@ -116,19 +146,25 @@ def perLayerOp(mat, opFunc):
 
     return retMat
 
-def hdf5Augment(filename, outfilename):
+from rochesterWrappers import *
+def hdf5Augment(filename, outfilename, verbose=False):
     """
     Augments the games stored in filename by rotating and reflecting the states.
 
     @type   filename    :   String
     @param  filename    :   Name of the file to read from.
     """
-    states = []
-    actions = []
+    if type(filename)==str:
+        originalDict = hdf52dict(filename)
+    else:
+        originalDict = filename
 
-    originalDict = hdf52dict(filename)
     oriSts = originalDict['states']
     oriActs = originalDict['actions']
+
+
+    states = []
+    actions = []
 
     count = 0
     numSamples = oriSts.shape[0]
@@ -155,8 +191,28 @@ def hdf5Augment(filename, outfilename):
         states.append(state180Ref)
         states.append(state270Ref)
 
+        if verbose:
+            printNPYstate(state0)
+            printNPYstate(state90)
+            printNPYstate(state180)
+            printNPYstate(state270)
+            printNPYstate(state0Ref)
+            printNPYstate(state90Ref)
+            printNPYstate(state180Ref)
+            printNPYstate(state270Ref)
+
         actionBoard = np.zeros((BOARD_SZ,BOARD_SZ))
-        actionBoard[oriActs[i][0],oriActs[i][1]] = 1
+        if len(oriActs.shape)==1:
+            if verbose:
+                print oriActs[i]%BOARD_SZ
+                print int(float(oriActs[i])/BOARD_SZ)
+            actionBoard[oriActs[i]%BOARD_SZ,oriActs[i]/BOARD_SZ] = 1
+        else:
+            if verbose:
+                print oriActs[i][0]
+                print oriActs[i][1]
+            actionBoard[oriActs[i][0],oriActs[i][1]] = 1
+
         actionBoard90 = np.rot90(actionBoard).copy()
         actionBoard180 = np.rot90(actionBoard90).copy()
         actionBoard270 = np.rot90(actionBoard180).copy()
@@ -167,22 +223,67 @@ def hdf5Augment(filename, outfilename):
 
         oneLoc = np.where(actionBoard)
         actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        if verbose:
+            print oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ
+            print(str(np.transpose(actionBoard)).replace('0',' ').replace('.',''))
+
         oneLoc = np.where(actionBoard90)
         actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        if verbose:
+            print oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ
+            print(str(np.transpose(actionBoard90)).replace('0',' ').replace('.',''))
+
         oneLoc = np.where(actionBoard180)
         actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        if verbose:
+            print oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ
+            print(str(np.transpose(actionBoard180)).replace('0',' ').replace('.',''))
+
         oneLoc = np.where(actionBoard270)
         actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        if verbose:
+            print oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ
+            print(str(np.transpose(actionBoard270)).replace('0',' ').replace('.',''))
+
         oneLoc = np.where(actionBoard0Ref)
         actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        if verbose:
+            print oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ
+            print(str(np.transpose(actionBoard0Ref)).replace('0',' ').replace('.',''))
+
         oneLoc = np.where(actionBoard90Ref)
         actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        if verbose:
+            print oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ
+            print(str(np.transpose(actionBoard90Ref)).replace('0',' ').replace('.',''))
+
         oneLoc = np.where(actionBoard180Ref)
         actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        if verbose:
+            print oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ
+            print(str(np.transpose(actionBoard180Ref)).replace('0',' ').replace('.',''))
+
         oneLoc = np.where(actionBoard270Ref)
         actions.append(oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ)
+        if verbose:
+            print oneLoc[0][0]+oneLoc[1][0]*BOARD_SZ
+            print(str(np.transpose(actionBoard270Ref)).replace('0',' ').replace('.',''))
 
     write2hdf5(outfilename, {'states':states, 'actions':actions})
+
+def reduceAugmentWorker(grouped):
+    pachiDict,prefix,pos = grouped
+    reducedDict = reducePachi(pachiDict, prefix+'_pos_'+str(pos)+'_actionFixed.hdf5', pos)
+    hdf5Augment(reducedDict, prefix+'_pos_'+str(pos)+'_augmented.hdf5')
+
+def reduceAugmentWrapper(prefix, numPositions):
+    if type(numPositions)!=list:
+        numPositions = [numPositions]
+
+    pachiDict = hdf52dict(prefix+'_actionFixed.hdf5')
+
+    p = Pool(8)
+    p.map(reduceAugmentWorker,[(pachiDict,prefix,pos) for pos in numPositions]) 
 
 def sgf2stateaction(filename, boardIndx, feature_list=FEATURE_LIST):
     """
@@ -258,102 +359,105 @@ def pachiGameRecorder(filename, verbose=False, playbyplay=False):
     if os.path.isfile(filename):
        return
     actions = []
-    ff = ''
 
-    # create 2 gym environments
-    gymEnv1 = gym.make('Go9x9-v0')
-    gymEnv1.reset()
-    gymEnv1.state.color = pachi_py.WHITE
-    gymEnv1.player_color = pachi_py.WHITE
+    while len(actions)<45:
+        actions = []
+        ff = ''
 
-    gymEnv2 = gym.make('Go9x9-v0')
-    gymEnv2.reset()
+        # create 2 gym environments
+        gymEnv1 = gym.make('Go9x9-v0')
+        gymEnv1.reset()
+        gymEnv1.state.color = pachi_py.WHITE
+        gymEnv1.player_color = pachi_py.WHITE
 
-    # create 2 dummies to play against pachi
-    dummy1 = NNGoPlayer(NNGoPlayer.WHITE, None, gymEnv=gymEnv1)
-    dummy2 = NNGoPlayer(NNGoPlayer.BLACK, None, gymEnv=gymEnv2)
+        gymEnv2 = gym.make('Go9x9-v0')
+        gymEnv2.reset()
 
-    # play out the game
-    playBlack = True
-    dummy1.last_pachi_mv = PASS_ACTION
-    dummy2.last_pachi_mv = PASS_ACTION
-    while True:
-        if playbyplay:
-            printRocBoard(dummy1.rocEnv)
-            printRocBoard(dummy2.rocEnv)
-        ff += 'Black playing' if playBlack else 'White playing'
-        ff += '\n'
-        ff += str(returnRocBoard(dummy1.rocEnv)).replace('0',' ').replace('.','')
-        ff += '\n'
-        ff += gymEnv1.state.board.__str__()
-        ff += '\n'
-        ff += 'last move: %d' %dummy1.last_pachi_mv
-        ff += '\n'
-        ff += str(returnRocBoard(dummy2.rocEnv)).replace('0',' ').replace('.','')
-        ff += '\n'
-        ff += gymEnv2.state.board.__str__()
-        ff += '\n'
-        ff += 'last move: %d' %dummy2.last_pachi_mv
-        ff += '\n'
-        ff += '\n'
-        ff += '\n'
+        # create 2 dummies to play against pachi
+        dummy1 = NNGoPlayer(NNGoPlayer.WHITE, None, gymEnv=gymEnv1)
+        dummy2 = NNGoPlayer(NNGoPlayer.BLACK, None, gymEnv=gymEnv2)
 
-        dummyPlaying = dummy1 if playBlack else dummy2
-        dummyNotPlaying = dummy2 if playBlack else dummy1
-        playBlack = not playBlack
+        # play out the game
+        playBlack = True
+        dummy1.last_pachi_mv = PASS_ACTION
+        dummy2.last_pachi_mv = PASS_ACTION
+        while True:
+            if playbyplay:
+                printRocBoard(dummy1.rocEnv)
+                printRocBoard(dummy2.rocEnv)
+            ff += 'Black playing' if playBlack else 'White playing'
+            ff += '\n'
+            ff += str(returnRocBoard(dummy1.rocEnv)).replace('0',' ').replace('.','')
+            ff += '\n'
+            ff += gymEnv1.state.board.__str__()
+            ff += '\n'
+            ff += 'last move: %d' %dummy1.last_pachi_mv
+            ff += '\n'
+            ff += str(returnRocBoard(dummy2.rocEnv)).replace('0',' ').replace('.','')
+            ff += '\n'
+            ff += gymEnv2.state.board.__str__()
+            ff += '\n'
+            ff += 'last move: %d' %dummy2.last_pachi_mv
+            ff += '\n'
+            ff += '\n'
+            ff += '\n'
 
-        if dummyNotPlaying.last_pachi_mv==PASS_ACTION:
-            print 'passed'
-        try:
-            if dummyPlaying.makemoveGym(move=dummyNotPlaying.last_pachi_mv, 
-                                        playbyplay=playbyplay):
-                break
-        except:
-            print ff
+            dummyPlaying = dummy1 if playBlack else dummy2
+            dummyNotPlaying = dummy2 if playBlack else dummy1
+            playBlack = not playBlack
+
+            if dummyNotPlaying.last_pachi_mv==PASS_ACTION:
+                print 'passed'
+            try:
+                if dummyPlaying.makemoveGym(move=dummyNotPlaying.last_pachi_mv, 
+                                            playbyplay=playbyplay):
+                    break
+            except:
+                print ff
+                gymEnv1.render()
+                printRocBoard(dummy1.rocEnv)
+                gymEnv2.render()
+                printRocBoard(dummy2.rocEnv)
+                exit(1)
+
+            actions.append(dummyPlaying.last_pachi_mv)
+
+        if verbose:
+            # setup the environment
+            backup = sys.stdout
+            # ####
+            sys.stdout = StringIO()     # capture output
+            gymEnv1.step(PASS_ACTION)
             gymEnv1.render()
-            printRocBoard(dummy1.rocEnv)
+            out = sys.stdout.getvalue() # release output
+            gym1board = '\n'.join(out.split('\n')[2:])
+            # ####
+            sys.stdout.close()  # close the stream 
+            sys.stdout = backup # restore original stdout
+
+
+            # setup the environment
+            backup = sys.stdout
+            # ####
+            sys.stdout = StringIO()     # capture output
+            gymEnv2.step(PASS_ACTION)
             gymEnv2.render()
-            printRocBoard(dummy2.rocEnv)
-            exit(1)
+            out = sys.stdout.getvalue() # release output
+            gym2board = '\n'.join(out.split('\n')[2:])
+            # ####
+            sys.stdout.close()  # close the stream 
+            sys.stdout = backup # restore original stdout
 
-        actions.append(dummyPlaying.last_pachi_mv)
+            if gym1board!=gym2board:
+                print ff
+                print gym1board
+                print gym2board
+                printRocBoard(dummy1.rocEnv)
+                printRocBoard(dummy2.rocEnv)
 
-    if verbose:
-        # setup the environment
-        backup = sys.stdout
-        # ####
-        sys.stdout = StringIO()     # capture output
-        gymEnv1.step(PASS_ACTION)
-        gymEnv1.render()
-        out = sys.stdout.getvalue() # release output
-        gym1board = '\n'.join(out.split('\n')[2:])
-        # ####
-        sys.stdout.close()  # close the stream 
-        sys.stdout = backup # restore original stdout
-
-
-        # setup the environment
-        backup = sys.stdout
-        # ####
-        sys.stdout = StringIO()     # capture output
-        gymEnv2.step(PASS_ACTION)
-        gymEnv2.render()
-        out = sys.stdout.getvalue() # release output
-        gym2board = '\n'.join(out.split('\n')[2:])
-        # ####
-        sys.stdout.close()  # close the stream 
-        sys.stdout = backup # restore original stdout
-
-        if gym1board!=gym2board:
-            print ff
-            print gym1board
-            print gym2board
-            printRocBoard(dummy1.rocEnv)
-            printRocBoard(dummy2.rocEnv)
-
-            print ""
-            print "Winner: %s" %('Black' if gymEnv1.state.board.official_score<0 else 'White')
-            print "Score: %d" % gymEnv1.state.board.official_score
+                print ""
+                print "Winner: %s" %('Black' if gymEnv1.state.board.official_score<0 else 'White')
+                print "Score: %d" % gymEnv1.state.board.official_score
 
     print actions
     sgfWriter(actions, filename)
@@ -362,17 +466,10 @@ def pachi_game_Dump(num_games=1000):
     """
     Runs pachiGameRecorder() 'num_games' times and dumps the resulting sgf files
     """
-    from multiprocessing import Pool
-
-    filename = 'pachi_games3/pachi_game_%d.sgf'
-    p = Pool(4)
+    filename = '/data/go/pachi_games_dense/pachi_game_%d.sgf'
+    p = Pool(32)
     filenames = [filename%i for i in list(range(num_games))]
     p.map(pachiGameRecorder,filenames)
     # for i in range(num_games):
     #     print i
     #     pachiGameRecorder(filename=filename%i, verbose=True,playbyplay=False)
-
-#pachi_game_Dump(30000)
-# sgf2hdf5('pachi30000.hdf5', '/data2/pachi30000', boardSz=BOARD_SZ)
-#sgf2hdf5('featuresNew.hdf5', 'pachi_games', boardSz=BOARD_SZ)
-#hdf5Augment('pachi5000.hdf5', 'pachi5000Augment.hdf5')
