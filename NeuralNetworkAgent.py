@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 from utils import *
-from utils import *
 from layers import *
 from goModels import *
 from hdf5Reader import *
@@ -43,6 +42,7 @@ class PolicyNetworkAgent(CNNLayers):
 
 
 	def trainAgent(self, inputData, inputLabels, numTrain, numEpochs):
+		saver = tf.train.Saver()
 		with tf.Session() as sess:
 			print("Initializing variables in Tensorflow")
 			if not self.prev_train:
@@ -70,56 +70,73 @@ class PolicyNetworkAgent(CNNLayers):
 						print("This is the max probability of the output layer: {}".format(np.amax(probList, axis=1)))
 						print("This is the min probability of the output layer: {}".format(np.amin(probList, axis=1)))
 
+				if (epoch+1)%5 == 0:
+					saver.save(sess, 'train-model_'+str(epoch+1))
+
 
 				print("Completed epoch {}".format(epoch))
 
 			numCorrect = 0
-			numIncorrect = 0
+			total = 0
 			for i in range(0,numTrain,self.batch_size):
 				curBatch = inputData[range(i,i+ self.batch_size),:,:,:]
 				curLabels = inputLabels[range(i,i+ self.batch_size), :]
 				pyx, loss = sess.run([self.layerOuts['pred'], self.cumCost], feed_dict={self.inputTrainPos: curBatch,
 																self.trainLabel: curLabels})
 				print("The current test iteration is: {}".format(i))
-				prediction = tf.argmax(pyx, 1)
-				realOutput = np.where(curLabels == 1)[0]
-				if prediction == realOutput:
-					numCorrect +=1 
-				else:
-					numIncorrect += 1
+
+				predValue = np.argmax(pyx, axis=1)
+				realOutput = np.argmax(curLabels, axis=1)
+				correctOut = np.equal(realOutput, predValue)
+				numCorrect += np.sum(correctOut) 
+				total += self.batch_size
 
 			
-			accuracy = (numCorrect)/(numCorrect + numIncorrect)
+			accuracy = float((numCorrect))/float(total)
 			print("The accuracy of this batch is {}".format(accuracy))
+
+		# sess = tf.Session()
+		# new_saver = tf.train.import_meta_graph('test-model.meta')
+		# new_saver.restore(sess, tf.train.latest_checkpoint('./'))
+		# all_vars = tf.trainable_variables()
+		# for v in all_vars:
+		#     print(v.name)
 
 		return self.layerOuts, self.weights, self.biases
 
 
 
-	def testAgentAccuracy(self, inputData, inputLabels, numTest):
+	def testAgentAccuracy(self, inputData, inputLabels, numTest, metaFile, chkptFile):
+		total = 0
+		numCorrect = 0
 		with tf.Session() as sess:
-			if not self.prev_train:
-				init_op = tf.group(tf.initialize_all_variables(), tf.initialize_local_variables())
-				init_op.run()
+			new_saver = tf.train.import_meta_graph(metaFile)
+			init_op = tf.group(tf.initialize_all_variables(), tf.initialize_local_variables())
+			init_op.run()
+			new_saver.restore(sess, chkptFile)
+			print("Checkpoint for required model restored")
+			all_vars = tf.trainable_variables()
+			for v in all_vars:
+			    print(v.name)
 
-			for i in range(0,numTest,):
-				curBatch = inputData[i,:,:,:]
-				curLabels = inputLabels[i, :]
-				pyx, loss = sess.run([self.layersOut['pred'], self.cumCost], feed_dict={self.inputTrainPos: curBatch,
+			for i in range(0,numTest-self.batch_size, self.batch_size):
+				curBatch = inputData[range(i,i+ self.batch_size),:,:,:].reshape((self.batch_size,BOARD_SZ,BOARD_SZ,NUM_FEATURES))
+				curLabels = inputLabels[range(i,i+ self.batch_size), :].reshape((self.batch_size,NUM_ACTIONS))
+				pyx, loss = sess.run([self.layerOuts['pred'], self.cumCost], feed_dict={self.inputTrainPos: curBatch,
 																self.trainLabel: curLabels})
 				print("The current test iteration is: {}".format(i))
 				predictionLabels = np.zeros(pyx.shape)
 				predictionLabels[pyx >= 0.5] = 1
 
 				predValue = np.argmax(predictionLabels, axis=1)
-				realOutput = np.where(curLabels == predValue)[0]
-				if prediction == realOutput:
-					numCorrect +=1 
-				else:
-					numIncorrect += 1
+				realOutput = np.argmax(curLabels, axis=1)
+				correctOut = np.equal(realOutput, predValue)
+				numCorrect += np.sum(correctOut) 
+				total += self.batch_size
+
 
 			
-			accuracy = (numCorrect)/(numCorrect + numIncorrect)
+			accuracy = float((numCorrect))/float((total))
 			print("The accuracy of this batch is {}".format(accuracy))
 
 	def trainSupervisedNetwork(self, filePath):
@@ -140,8 +157,11 @@ class PolicyNetworkAgent(CNNLayers):
 
 		trainStatesBatch = self.states[:NUM_TRAIN_LARGE,:,:,:NUM_FEATURES]
 		trainLabelsBatch = self.encodedActions[:NUM_TRAIN_LARGE,:]
+		testStatesBatch = self.states[NUM_TRAIN_LARGE:,:,:,:NUM_FEATURES]
+		testLabelsBatch = self.encodedActions[NUM_TRAIN_LARGE:,:]
 		layerOuts, weights, biases, cumCost, train_op = self.createPolicyAgent()
 		self.trainAgent(trainStatesBatch, trainLabelsBatch,NUM_TRAIN_LARGE, NUM_EPOCHS)
+		self.testAgentAccuracy(testStatesBatch, testLabelsBatch,testStatesBatch.shape[0], './train-model_5.meta', './train-model_5' )
 
 	def updateWeights(self, updatedWeights, updatedBiases):
 		with tf.Session() as sess:
