@@ -9,33 +9,6 @@ from NNGoPlayer import NNGoPlayer,nn_vs_nnGame
 from rochesterWrappers import *
 from utils import write2hdf5
 
-def RL_Playout(numGames, policyModel, filename=None, opponentModel=None, verbose=False, playbyplay=False):
-    """
-    Plays out 'numGames' Games between policyModel and opponentModel.
-    If the opponentModel is None, the policy will play against Pachi under OpenAI Gym.
-    Saves the state action pairs to a file if 'filename' is specified.
-    """
-    gamesPlayed = 0
-    states = []
-    actions = []
-    rewards = []
-    while gamesPlayed<numGames:
-        if opponentModel:
-            output = RL_DataGen(policyModel, opponentModel, verbose=verbose, playbyplay=playbyplay)
-        else:
-            output = Gym_DataGen(policyModel, verbose=verbose, playbyplay=playbyplay)
-        if output:
-            gamesPlayed += 1
-            nnPlayer,reward = output
-            states += nnPlayer.states
-            actions += nnPlayer.actions
-            rewards += [reward]*len(nnPlayer.actions)
-
-    if filename:
-        write2hdf5(filename, {'states':states, 'actions':actions, 'rewards':rewards})
-
-    return states,actions,rewards
-
 def Gym_DataGen(policyModel, verbose=False, playbyplay=False):
     """
     Plays out a Gym game against Pachi.
@@ -110,12 +83,6 @@ def RL_DataGen(policyModel, opponentModel, verbose=False, playbyplay=False):
 
     winner = nn_vs_nnGame(rocEnv, True, nnBlack, nnWhite, verbose=verbose, playbyplay=playbyplay)
 
-    # the game was a tie
-    if not winner:
-        if verbose:
-            print 'A tie game...'
-        return None
-
     # end of the game tasks
     # determine who the winner is
     reward = 1 if (policyColor == winner) else -1
@@ -132,28 +99,38 @@ def RL_DataGen(policyModel, opponentModel, verbose=False, playbyplay=False):
 
     return (nnPlayer,reward)
 
-def Value_Playout(numGames, sl_model, rl_model, filename=None, U_MAX=90, verbose=False, playbyplay=False):
+def RL_Playout(numGames, policyModel, filename=None, opponentModel=None, verbose=False, playbyplay=False):
     """
-    Plays out 'numGames' value iteration games.
+    Plays out 'numGames' Games between policyModel and opponentModel.
+    If the opponentModel is None, the policy will play against Pachi under OpenAI Gym.
     Saves the state action pairs to a file if 'filename' is specified.
     """
     gamesPlayed = 0
-    states = []
-    actions = []
-    rewards = []
+    win_states = []
+    win_actions = []
+    lose_states = []
+    lose_actions = []
     while gamesPlayed<numGames:
-        output = valueDataGen(sl_model, rl_model, U_MAX=U_MAX, verbose=verbose, playbyplay=playbyplay)
-
+        if opponentModel:
+            output = RL_DataGen(policyModel, opponentModel, verbose=verbose, playbyplay=playbyplay)
+        else:
+            output = Gym_DataGen(policyModel, verbose=verbose, playbyplay=playbyplay)
         if output:
             gamesPlayed += 1
-            state,reward = output
-            states.append(state)
-            rewards.append(reward)
+            nnPlayer,reward = output
+            if reward==1:
+                win_states += nnPlayer.states
+                win_actions += nnPlayer.actions
+            else:
+                lose_states += nnPlayer.states
+                lose_actions += nnPlayer.actions
 
     if filename:
-        write2hdf5(filename, {'states':states, 'rewards':rewards})
+        write2hdf5(filename, {'win_states':win_states, 'win_actions':win_actions, 
+                              'lose_states':lose_states, 'lose_actions':lose_actions,
+                              'rewards':rewards})
 
-    return states,rewards
+    return win_states, win_actions, lose_states, lose_actions
 
 def valueDataGen(sl_model, rl_model, U_MAX=90, verbose=False, playbyplay=False):
     """
@@ -230,3 +207,26 @@ def valueDataGen(sl_model, rl_model, U_MAX=90, verbose=False, playbyplay=False):
         print "Reward: %d" %reward
 
     return uPState,reward
+
+def Value_Playout(numGames, sl_model, rl_model, filename=None, U_MAX=90, verbose=False, playbyplay=False):
+    """
+    Plays out 'numGames' value iteration games.
+    Saves the state action pairs to a file if 'filename' is specified.
+    """
+    gamesPlayed = 0
+    states = []
+    actions = []
+    rewards = []
+    while gamesPlayed<numGames:
+        output = valueDataGen(sl_model, rl_model, U_MAX=U_MAX, verbose=verbose, playbyplay=playbyplay)
+
+        if output:
+            gamesPlayed += 1
+            state,reward = output
+            states.append(state)
+            rewards.append(reward)
+
+    if filename:
+        write2hdf5(filename, {'states':states, 'rewards':rewards})
+
+    return states,rewards
