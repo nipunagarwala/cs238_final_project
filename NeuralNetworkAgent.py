@@ -6,6 +6,7 @@ from goModels import *
 from hdf5Reader import *
 from constants import *
 import random 
+np.set_printoptions(threshold='nan')
 
 # '/data2/features.hdf5'
 
@@ -37,11 +38,11 @@ class PolicyNetworkAgent(CNNLayers):
 		self.layerOuts, self.weights, self.biases = self.network.build_model()
 
 		print("Setting up training policies and structure for Policy Network")
-		self.cumCost, self.train_op, self.prob = self.network.train()
-		return self.layerOuts, self.weights, self.biases, self.cumCost, self.train_op
+		self.cumCost, self.train_op, self.neg_train_op,self.prob, self.action, self.actionMean, self.realLabels = self.network.train()
+		return self.layerOuts, self.weights, self.biases, self.cumCost, self.train_op, self.neg_train_op
 
 
-	def trainAgent(self, inputData, inputLabels, numTrain, numEpochs):
+	def trainAgent(self, inputData, inputLabels, numTrain, numEpochs, negTrain=False):
 		saver = tf.train.Saver()
 		with tf.Session() as sess:
 			print("Initializing variables in Tensorflow")
@@ -60,8 +61,11 @@ class PolicyNetworkAgent(CNNLayers):
 				for i in range(0,numTrain, self.batch_size):
 					curBatch = inputData[range(i,i+ self.batch_size),:,:,:]
 					curLabels = inputLabels[i:i+ self.batch_size, :]
-					_, loss, probList = sess.run([self.train_op,self.cumCost, self.prob], feed_dict={self.inputTrainPos: curBatch,
-																	self.trainLabel: curLabels})
+					curOp = self.train_op
+					if negTrain:
+						curOp = self.neg_train_op
+					_, loss, probList, actionVal, actMeanVal,labelVal = sess.run([curOp,self.cumCost, self.prob, self.action, self.actionMean,self.realLabels],
+								 feed_dict={self.inputTrainPos: curBatch, self.trainLabel: curLabels})
 					
 					if i%1000 == 0:
 						print("The current iteration is {}".format(i))
@@ -69,9 +73,19 @@ class PolicyNetworkAgent(CNNLayers):
 						print("The shape of the probability distribution is: {}".format( probList.shape))
 						print("This is the max probability of the output layer: {}".format(np.amax(probList, axis=1)))
 						print("This is the min probability of the output layer: {}".format(np.amin(probList, axis=1)))
+						# print("These are the action labels: {}".format(actionVal))
+						#print("This is the reducedsum for action prediction: {}".format(actMeanVal))
+						#print("These are the real labels: {}".format(labelVal))
+						predValue = np.argmax(probList, axis=1)
+						realOutput = np.argmax(labelVal, axis=1)
+						correctOut = np.equal(realOutput, predValue)
+						numCorrect = np.sum(correctOut) 
+						accuracy = float((numCorrect))/self.batch_size
+						print("The accuracy of this batch is {}".format(accuracy))
+
 
 				if (epoch+1)%5 == 0:
-					saver.save(sess, 'train-model_'+str(epoch+1))
+					saver.save(sess, 'human-aug-model', global_step=epoch+1)
 
 
 				print("Completed epoch {}".format(epoch))
@@ -159,9 +173,11 @@ class PolicyNetworkAgent(CNNLayers):
 		trainLabelsBatch = self.encodedActions[:NUM_TRAIN_LARGE,:]
 		testStatesBatch = self.states[NUM_TRAIN_LARGE:,:,:,:NUM_FEATURES]
 		testLabelsBatch = self.encodedActions[NUM_TRAIN_LARGE:,:]
-		layerOuts, weights, biases, cumCost, train_op = self.createPolicyAgent()
+		layerOuts, weights, biases, cumCost, train_op,  neg_train_op = self.createPolicyAgent()
 		self.trainAgent(trainStatesBatch, trainLabelsBatch,NUM_TRAIN_LARGE, NUM_EPOCHS)
-		self.testAgentAccuracy(testStatesBatch, testLabelsBatch,testStatesBatch.shape[0], './train-model_5.meta', './train-model_5' )
+		# self.testAgentAccuracy(testStatesBatch, testLabelsBatch,testStatesBatch.shape[0], './train-model_30.meta', './train-model_30' )
+
+		return layerOuts, weights, biases, cumCost, train_op
 
 	def updateWeights(self, updatedWeights, updatedBiases):
 		with tf.Session() as sess:
@@ -170,6 +186,25 @@ class PolicyNetworkAgent(CNNLayers):
 				updateOpBias = self.biases['b'+str(i+1)].assign(updatedBiases['b'+str(i+1)])
 				sess.run(updateOpWeight)
 				sess.run(updateOpBias)
+
+	def preProcessInputs(self, inStates, inActions, numTrain):
+		numExamples = inStates.shape[0]
+		print(inStates.shape)
+		transStates = np.transpose(inStates, axes=[0,2,3,1])
+		actionsShape = inActions.shape
+		encodedActions = np.zeros((actionsShape[0],81))
+
+		for i in range(0,actionsShape[0]):
+			encodedActions[i,inActions[i]] = 1 
+
+		trainStatesBatch = transStates[:NUM_TRAIN_LARGE,:,:,:NUM_FEATURES]
+		trainLabelsBatch = encodedActions[:NUM_TRAIN_LARGE,:]
+		testStatesBatch = transStates[NUM_TRAIN_LARGE:,:,:,:NUM_FEATURES]
+		testLabelsBatch = encodedActions[NUM_TRAIN_LARGE:,:]
+
+		return trainStatesBatch, trainLabelsBatch, testStatesBatch, testLabelsBatch
+
+
 
 
 

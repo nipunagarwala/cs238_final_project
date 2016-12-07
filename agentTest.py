@@ -13,7 +13,7 @@ from NeuralNetworkAgent import *
 
 def main():
 	supervisedPolicyNetwork =  PolicyNetworkAgent(BATCH_SIZE)
-	supervisedPolicyNetwork.trainSupervisedNetwork('/data/go/human700_actionFixed.hdf5')
+	supervisedPolicyNetwork.trainSupervisedNetwork('/data/go/augmented/human700_augmented.hdf5')
 
 
 
