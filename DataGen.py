@@ -106,6 +106,7 @@ def RL_Playout(numGames, policyModel, filename=None, opponentModel=None, verbose
     Saves the state action pairs to a file if 'filename' is specified.
     """
     gamesPlayed = 0
+    gamesWon = 0
     win_states = []
     win_actions = []
     lose_states = []
@@ -119,6 +120,7 @@ def RL_Playout(numGames, policyModel, filename=None, opponentModel=None, verbose
             gamesPlayed += 1
             nnPlayer,reward = output
             if reward==1:
+                gamesWon += 1
                 win_states += nnPlayer.states
                 win_actions += nnPlayer.actions
             else:
@@ -130,7 +132,7 @@ def RL_Playout(numGames, policyModel, filename=None, opponentModel=None, verbose
                               'lose_states':lose_states, 'lose_actions':lose_actions,
                               'rewards':rewards})
 
-    return win_states, win_actions, lose_states, lose_actions
+    return win_states, win_actions, lose_states, lose_actions, gamesWon
 
 def valueDataGen(sl_model, rl_model, U_MAX=90, verbose=False, playbyplay=False):
     """
