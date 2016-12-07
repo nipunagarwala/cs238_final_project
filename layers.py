@@ -79,8 +79,9 @@ class Layers(object):
             prob = tf.nn.softmax(output_logit, dim=-1, name=None)
             actionLabels = tf.mul(prob, Y)
             sumRes = tf.reduce_sum(actionLabels, 1)
-            actionLikelihood = tf.reduce_mean(sumRes)
-            cost = tf.clip_by_value(tf.sub(tf.constant(0.0), tf.log(actionLikelihood)),epsilon ,1e6)
+            actionLikelihood =tf.clip_by_value( tf.log(sumRes), -1e4, 1000)
+            actionLikelihood = tf.reduce_mean(actionLikelihood)
+            cost = -actionLikelihood
 
 
             # cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output_logit , Yint))
@@ -142,12 +143,12 @@ class CNNLayers(Layers):
     def init_weights(self, shape):
         return tf.Variable(tf.random_normal(shape, stddev=self.stdDev))
 
-    def conv_layer(self, prev_layer_out, w_shape, layer_stride, w_name, num_dim = '2d', padding='SAME',if_relu = True, batchNorm = True):
+    def conv_layer(self, prev_layer_out, w_shape, layer_stride, w_name, b_name, num_dim = '2d', padding='SAME',if_relu = True, batchNorm = True):
         w_conv = tf.Variable(tf.random_normal(w_shape, stddev=self.stdDev),
                           name=w_name)
 
         numFilters = w_shape[len(w_shape)-1]
-        b = tf.Variable(tf.random_normal([numFilters], stddev=self.stdDev))
+        b = tf.Variable(tf.random_normal([numFilters], stddev=self.stdDev), name=b_name)
 
         nextLayer = None
         if num_dim == '3d':

@@ -31,16 +31,16 @@ class PolicyNetwork(CNNLayers):
 		layersOut['output'] = self.output
 		prev_layer = self.input
 		prev_shape = (prev_layer.get_shape().as_list())[1]
-		layersOut['layer1'], weights['w1'], biases['b1'] = self.conv_layer(self.input, [5,5,NUM_FEATURES, self.num_filters], self.strides, 'layer1',
+		layersOut['layer1'], weights['w1'], biases['b1'] = self.conv_layer(self.input, [5,5,NUM_FEATURES, self.num_filters], self.strides, 'w_layer1', 'b_layer1',
         											 			padding='SAME',if_relu = True, batchNorm = False)
 
 		for i in range(1,self.num_layers-1):
 			layersOut['layer'+str(i+1)], weights['w'+str(i+1)], biases['b'+str(i+1)] = self.conv_layer( layersOut['layer'+str(i)], self.filters, self.strides, 
-        											'layer'+str(i+1), num_dim = '2d', padding='SAME',if_relu = True, batchNorm = False)
+        											'w_layer'+str(i+1),'b_layer'+str(i+1) ,num_dim = '2d', padding='SAME',if_relu = True, batchNorm = False)
 		
 		
 		layersOut['layer'+str(self.num_layers)], weights['w'+str(self.num_layers)],biases['b'+str(self.num_layers)] = self.conv_layer(layersOut['layer'+str(self.num_layers-1)],
-							 [1,1,self.num_filters, 1], self.strides, 'layer'+str(self.num_layers), num_dim = '2d',
+							 [1,1,self.num_filters, 1], self.strides, 'w_layer'+str(self.num_layers),'b_layer'+str(self.num_layers),num_dim = '2d',
 							  padding='SAME',if_relu = False, batchNorm = False)
 
 
