@@ -53,6 +53,7 @@ class Layers(object):
     def cost_function(self, model_output, Y, op='square'):
         cost = None
         prob = None
+        actionLabels = None
         if  op == 'square':
             cost = tf.reduce_mean(tf.square(tf.sub(model_output,Y)))
         elif op == 'sigmoid':
@@ -73,10 +74,10 @@ class Layers(object):
         elif op == 'log-likelihood':
             Yint = tf.to_int32(Y, name='ToInt64')
             epsilon = 10e-6
-            output = tf.clip_by_value(model_output, epsilon, 1 - epsilon)
-            # Create logit of output
-            output_logit = tf.log(output / (1 - output))
-            prob = tf.nn.softmax(output_logit, dim=-1, name=None)
+            # output = tf.clip_by_value(model_output, epsilon, 1 - epsilon)
+            # # Create logit of output
+            # output_logit = tf.log(output / (1 - output))
+            prob = tf.nn.softmax(model_output, dim=-1, name=None)
             actionLabels = tf.mul(prob, Y)
             sumRes = tf.reduce_sum(actionLabels, 1)
             actionLikelihood =tf.clip_by_value( tf.log(sumRes), -1e4, 1000)
@@ -89,7 +90,7 @@ class Layers(object):
             # prob = tf.nn.softmax(output_logit, dim=-1, name=None)
 
 
-        return cost, prob 
+        return cost, prob, model_output, tf.reduce_sum(actionLabels, 1), Y
 
     def minimization_function(self, cost, learning_rate, beta1, beta2, opt='Rmsprop'):
         train_op = None
