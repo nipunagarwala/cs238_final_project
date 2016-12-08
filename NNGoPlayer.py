@@ -18,6 +18,7 @@ pachi_py.WHITE          : 2
 
 def nn_vs_nnGame(rocEnv, playBlack, nnBlack, nnWhite, verbose=False, playbyplay=False):
     # play out the game, returns the winner (NNGoPlayer.BLACK or NNGoPlayer.WHITE)
+    counter = 0
     while True:
         if playbyplay:
             printRocBoard(nnBlack.rocEnv)
@@ -35,6 +36,10 @@ def nn_vs_nnGame(rocEnv, playBlack, nnBlack, nnWhite, verbose=False, playbyplay=
                 return None
             winner = NNGoPlayer.BLACK if won==Rocgo.BLACK else NNGoPlayer.WHITE
             break
+
+        counter += 1
+        if counter>100:
+            return None
 
     return winner
 
@@ -75,10 +80,16 @@ class NNGoPlayer(object):
         # move : Zero-indexed, row major coordinate to play
         # pass action is PASS_ACTION
         # resign action is RESIGN_ACTION
-        pyx = (self.nnmodel).make_move(state)
+        incDimState = np.zeros((1, BOARD_SZ,BOARD_SZ, NUM_FEATURES))
+        transStates = np.transpose(state, axes=[1,2,0])
+        incDimState[0,:,:,:] = transStates
+
+
+        pyx = (self.nnmodel).make_move(incDimState)
         predSortIndex = np.argsort(pyx)
         legal_actions = get_legal_coords(self.rocEnv)
-        for action in predSortIndex:
+
+        for action in predSortIndex[0][0]:
             if action in legal_actions:
                 return action
 

@@ -33,29 +33,65 @@ def trainPolicyRL(args):
 	global numEpochs
 
 	sess = tf.get_default_session()
+	oppList = []
 
 	opponentModel = PolicyNetworkAgent(numGames)
-	oppLayerOuts, oppWeights, oppBiases = None
+	oppLayerOuts, oppWeights, oppBiases,oppBetas, oppScales = None, None, None, None, None
 	if args.chkpt:
 		oppLayerOuts, oppWeights, oppBiases, oppBetas, oppScales, _, _ = opponentModel.createSLPolicyAgent()
+		saver = tf.train.Saver()
 		saver.restore(sess, args.chkpointpath)
+		print("Restored Supervised Policy Network from Checkpoint")
 
+	slVarList = [oppWeights, oppBiases, oppBetas, oppScales]
+	oppList.append(slVarList)
 	rlPolicyNetwork =  PolicyNetworkAgent(numGames)
+	print("Created Reinforcement Policy Network")
 	playerLayerOuts, playerWeights, playerBiases, playerBetas, playerScales, _, _ , _ = rlPolicyNetwork.createRLPolicyAgent()
 	rlPolicyNetwork.updateWeights(oppWeights, oppBiases, oppBetas, oppScales)
+	print("Updated weights for Reinforcement Policy Network")
 
 	for i in range(0,numPlays):
-		playoutList = RL_Playout(numGames, rlPolicyNetwork, filename=None, opponentModel=opponentModel, verbose=True, playbyplay=False)
-		if playoutList[2] > 0:
-			PostrainStatesBatch, PostrainLabelsBatch, _,_ = rlPolicyNetwork.preProcessInputs(playoutList[0], playoutList[1], playoutList[2])
-			rlPolicyNetwork.trainAgent(PostrainStatesBatch, PostrainLabelsBatch, playoutList[2], numEpochs,playoutList[2], None, False)
+		winPos, winActions, losePos, loseActions, winNum = RL_Playout(numGames, rlPolicyNetwork, filename=None, 
+								opponentModel=None, verbose=True, playbyplay=False)
+
+		loseNum = numGames - winNum
+		print("Played another {} games with random opponent at iteration {}".format(numGames, i))
+		if winNum > 0:
+			indices = [i for i, x in enumerate(winActions) if x == 81 or x == 82]
+			for index in sorted(indices, reverse=True):
+				del winPos[index]
+				del winActions[index]
+
+			numTrainPos = len(winActions)
+			winPosArray = np.asarray(winPos)
+			winActArray = np.asarray(winActions)
+			PostrainStatesBatch, PostrainLabelsBatch, _,_ = rlPolicyNetwork.preProcessInputs(winActArray,winPosArray, numTrainPos)
+			curLayerOuts, curWeight, curBias, curBeta, curScale =  rlPolicyNetwork.trainAgent(PostrainStatesBatch, PostrainLabelsBatch, 
+														numTrainPos, numEpochs,numTrainPos, None, False)
 		
-		if playoutList[5] > 0:
-			NegtrainStatesBatch, NegtrainLabelsBatch, _,_ = rlPolicyNetwork.preProcessInputs(playoutList[3], playoutList[4], playoutList[5])
-			rlPolicyNetwork.trainAgent(NegtrainStatesBatch, NegtrainLabelsBatch, playoutList[5], numEpochs,playoutList[5], None, True)
+		if loseNum > 0:
+			indices = [i for i, x in enumerate(loseActions) if x == 81 or x == 82]
+			for index in sorted(indices, reverse=True):
+				del losePos[index]
+				del loseActions[index]
+
+			numTrainPos = len(loseActions)
+			losePosArray = np.asarray(losePos)
+			loseActArray = np.asarray(loseActions)
+			NegtrainStatesBatch, NegtrainLabelsBatch, _,_ = rlPolicyNetwork.preProcessInputs(loseActArray, losePosArray, numTrainPos)
+			curLayerOuts, curWeight, curBias, curBeta, curScale =  rlPolicyNetwork.trainAgent(NegtrainStatesBatch, NegtrainLabelsBatch, 
+														numTrainPos, numEpochs, numTrainPos, None, True)
+			curOpp = [curWeight, curBias, curBeta, curScale]
+			oppList.append(curOpp)
 
 		if i%numUpdate == 0:
-			opponentModel.updateWeights(playerWeights, playerBiases,playerBetas, playerScales)
+			curOpp = [playerWeights, playerBiases,playerBetas, playerScales]
+			oppList.append(curOpp)
+
+		nextOpp = random.choice(oppList)
+		opponentModel.updateWeights(nextOpp[0], nextOpp[1],nextOpp[2], nextOpp[3])
+		print("Updated weights for Opponent model")
 
 
 

@@ -82,6 +82,8 @@ def RL_DataGen(policyModel, opponentModel, verbose=False, playbyplay=False):
     nnWhite = NNGoPlayer(NNGoPlayer.WHITE, whiteModel, rocEnv=rocEnv)
 
     winner = nn_vs_nnGame(rocEnv, True, nnBlack, nnWhite, verbose=verbose, playbyplay=playbyplay)
+    if winner==None:
+        return None
 
     # end of the game tasks
     # determine who the winner is

@@ -50,7 +50,7 @@ def get_legal_coords(rocEnv):
     @rtype              :   int array
     @rparam             :   Zero-indexed, row major coordinates of legal moves
     """
-    coords = sorted([x+y*BOARD_SZ for (x,y) in rocEnv.get_legal_moves()])
+    coords = sorted([x+y*BOARD_SZ for (x,y) in rocEnv.get_legal_moves(include_eyes = False)])
     coords.append(PASS_ACTION)
     coords.append(RESIGN_ACTION)
     return coords

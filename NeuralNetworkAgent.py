@@ -53,7 +53,7 @@ class PolicyNetworkAgent(CNNLayers):
 								 learning_rate=1e-4, beta1=0.9, beta2=None, lmbda = CNN_REG_CONSTANTS, op='Rmsprop')
 		
 		print("Building the Policy Network Model")
-		self.layerOuts, self.weights, self.biases = self.network.build_model()
+		self.layerOuts, self.weights, self.biases,self.betas, self.scales = self.network.build_model()
 
 		print("Setting up training policies and structure for Policy Network")
 		self.cumCost, self.train_op, self.neg_train_op, self.prob, self.action, self.actionMean, self.realLabels = self.network.RLtrain()
@@ -73,9 +73,9 @@ class PolicyNetworkAgent(CNNLayers):
 			saver.restore(sess, chkptFile)
 			print("Fetching checkpoint data from {}".format(chkptFile))
 
-		all_vars = tf.trainable_variables()
-		for v in all_vars:
-			print(v.name)
+		# all_vars = tf.trainable_variables()
+		# for v in all_vars:
+		# 	print(v.name)
 
 		shuffData = inputData
 		shuffLabels = inputLabels
@@ -143,7 +143,7 @@ class PolicyNetworkAgent(CNNLayers):
 		# for v in all_vars:
 		#     print(v.name)
 
-		return self.layerOuts, self.weights, self.biases
+		return self.layerOuts, self.weights, self.biases, self.betas, self.scales
 
 
 
@@ -206,14 +206,14 @@ class PolicyNetworkAgent(CNNLayers):
 
 
 
-	def updateWeights(self, updatedWeights, updatedBiases, updatedBetas, updatedScales, sess):
+	def updateWeights(self, updatedWeights, updatedBiases, updatedBetas, updatedScales):
 		sess = tf.get_default_session()
 		for i in range(0, NUM_LAYERS):
 			updateOpWeight = self.weights['w'+str(i+1)].assign(updatedWeights['w'+str(i+1)])
 			updateOpBias = self.biases['b'+str(i+1)].assign(updatedBiases['b'+str(i+1)])
 			if i < (NUM_LAYERS - 1):
 				updatedOpBetas =  self.betas['beta'+str(i+1)].assign(updatedBetas['beta'+str(i+1)])
-				updatedOpScales =  self.betas['scale'+str(i+1)].assign(updatedScales['scale'+str(i+1)])
+				updatedOpScales =  self.scales['scale'+str(i+1)].assign(updatedScales['scale'+str(i+1)])
 				sess.run(updatedOpBetas)
 				sess.run(updatedOpScales)
 

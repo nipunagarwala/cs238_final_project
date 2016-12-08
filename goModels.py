@@ -151,9 +151,9 @@ class ValueNetwork(CNNLayers):
 							  padding='SAME',if_relu = True, batchNorm = False)
 
 
-		fcShapeConv = layersOut['layer'+str(num_layers-2)].get_shape().as_list()
+		fcShapeConv = layersOut['layer'+str(num_layers-2)].get_shape().as_list()[1:]
 		numParams = reduce(lambda x, y: x*y, fcShapeConv)
-		layersOut['layer'+str(num_layers-2)+'-fc'] = tf.reshape(layersOut['layer'+str(num_layers-2)], [1, numParams])
+		layersOut['layer'+str(num_layers-2)+'-fc'] = tf.reshape(layersOut['layer'+str(num_layers-2)], [-1, numParams])
 
 		layersOut['layer'+str(num_layers-1)], weights['w'+str(num_layers-1)] = self.fcLayer(layersOut['layer'+str(num_layers-2)+'-fc'], 
 																				[ numParams, self.hidden_units], True, False)
