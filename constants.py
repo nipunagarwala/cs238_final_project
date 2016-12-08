@@ -17,7 +17,7 @@ FEATURE_LIST = ["board", "ones", "turns_since", "liberties", "capture_size",
 #																	  #
 #######################################################################
 
-BATCH_SIZE = 16
+BATCH_SIZE = 64
 NUM_LAYERS = 12
 DEPTH = 48
 NUM_ACTIONS = 81
@@ -25,7 +25,7 @@ NUM_FILTERS = 192
 NUM_FEATURES = 48
 NUM_EPOCHS = 60
 # NUM_TRAIN_SMALL = 16512
-NUM_TRAIN_LARGE = 222016
+NUM_TRAIN_LARGE = 638912
 # NUM_TRAIN_LARGE = 380160
 # NUM_TRAIN_LARGE = 2280000
 # NUM_TRAIN_LARGE = 220000

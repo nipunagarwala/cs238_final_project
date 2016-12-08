@@ -31,12 +31,14 @@ class Layers(object):
         return next_layer
 
 
-    def batch_norm(self, prev_layer, axes, beta_shape,scale_shape, var_eps = 1e-6):
+    def batch_norm(self, prev_layer, axes, beta_shape,scale_shape, beta_name, scale_name, var_eps = 1e-6):
         mu, sigma = tf.nn.moments(prev_layer, axes)
-        beta = self.init_weights(beta_shape)
-        scale = self.init_weights(scale_shape)
+        beta = tf.Variable(tf.random_normal(beta_shape, stddev=self.stdDev),
+                          name=beta_name)
+        scale = tf.Variable(tf.random_normal(scale_shape, stddev=self.stdDev),
+                          name=scale_name)
         next_layer = tf.nn.batch_normalization(prev_layer, mu, sigma, beta, scale, var_eps)
-        return next_layer
+        return next_layer, beta, scale
 
     def fcLayer(self, prev_layer, wshape, sigmoid=True, batch_norm=False):
         wOut = self.init_weights(wshape)
@@ -144,12 +146,13 @@ class CNNLayers(Layers):
     def init_weights(self, shape):
         return tf.Variable(tf.random_normal(shape, stddev=self.stdDev))
 
-    def conv_layer(self, prev_layer_out, w_shape, layer_stride, w_name, b_name, num_dim = '2d', padding='SAME',if_relu = True, batchNorm = True):
+    def conv_layer(self, prev_layer_out, w_shape, layer_stride, w_name, b_name, beta_name, scale_name, num_dim = '2d', padding='SAME',if_relu = True, batchNorm = True):
         w_conv = tf.Variable(tf.random_normal(w_shape, stddev=self.stdDev),
                           name=w_name)
 
         numFilters = w_shape[len(w_shape)-1]
         b = tf.Variable(tf.random_normal([numFilters], stddev=self.stdDev), name=b_name)
+        beta, scale = None, None
 
         nextLayer = None
         if num_dim == '3d':
@@ -159,14 +162,20 @@ class CNNLayers(Layers):
             nextLayer = tf.add(tf.nn.conv2d(prev_layer_out, w_conv,
                             strides=layer_stride, padding=padding,name=w_name),b)
 
-        if batchNorm:
-            nextLayer = self.batch_norm(nextLayer, [0,1,2,3], [numFilters], [numFilters])
+        if batchNorm and num_dim == '3d':
+            nextLayer, beta, scale = self.batch_norm(nextLayer, [0,1,2,3], [numFilters], [numFilters], beta_name, scale_name)
+
+        if batchNorm and num_dim == '2d':
+            nextLayer, beta, scale = self.batch_norm(nextLayer, [0,1,2], [numFilters], [numFilters], beta_name, scale_name)
 
         if if_relu:
             nextLayer = self.relu(nextLayer)
 
+        if batchNorm:
+            return nextLayer, w_conv, b, beta, scale
+        else:
+            return nextLayer, w_conv, b
 
-        return nextLayer, w_conv, b
 
 
     def deconv_layer(self, prev_layer_out, filter_shape, out_shape, layer_stride, w_name, num_dim = '2d',padding='SAME', if_relu = True, batchNorm = True):

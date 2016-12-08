@@ -75,8 +75,16 @@ class NNGoPlayer(object):
         # move : Zero-indexed, row major coordinate to play
         # pass action is PASS_ACTION
         # resign action is RESIGN_ACTION
+        pyx = (self.nnmodel).make_move(state)
+        predSortIndex = np.argsort(pyx)
+        legal_actions = get_legal_coords(self.rocEnv)
+        for action in predSortIndex:
+            if action in legal_actions:
+                return action
 
-        return self.makeRandomValidMove()
+        return PASS_ACTION
+
+        # return self.makeRandomValidMove()
 
     def updatePachiMove(self, observation, playbyplay=False):
         """
