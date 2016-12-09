@@ -30,7 +30,7 @@ def nn_vs_nnGame(rocEnv, playBlack, nnBlack, nnWhite, verbose=False, playbyplay=
         playBlack = not playBlack
 
         # did both players pass?
-        if counter>60 or rocEnv.is_end_of_game:
+        if counter>MAX_MOVES_PER_GAME or rocEnv.is_end_of_game:
             won = rocEnv.get_winner(verbose=verbose)
             if won == 0: # tie
                 return None
