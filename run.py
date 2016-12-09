@@ -93,13 +93,36 @@ def trainPolicyRL(args):
 		opponentModel.updateWeights(nextOpp[0], nextOpp[1],nextOpp[2], nextOpp[3])
 		print("Updated weights for Opponent model")
 
+# def createValueData(args):
+# 	sess = tf.get_default_session()
+# 	slModel = PolicyNetworkAgent(1)
+# 	rlModel = PolicyNetworkAgent(1)
+
+# 	saver_sl = tf.train.Saver()
+
+# 	slLayerOuts, slWeights, slBiases, slBetas, slScales, _, _ = slModel.createSLPolicyAgent()
+# 	saver_sl.restore(sess, SL_CHECKPOINT)
+# 	print("Restored Supervised Policy Network from Checkpoint")
+
+# 	saver_rl = tf.train.Saver()
+# 	rlLayerOuts, rlWeights, rlBiases, rlBetas, rlScales, _, _ , _ = rlModel.createRLPolicyAgent()
+# 	saver_rl.restore(sess, RL_CHECKPOINT)
+
+# 	states,rewards = Value_Playout(NUM_VAL_GAMES, slModel, rlModel, filename='valueNetworkData', U_MAX=90, verbose=False, playbyplay=False)
+
+
+
+
+
+
+
 
 
 def extract_parser():
 	parser = argparse.ArgumentParser(description='Train and Test mechanism for DeepGo')
 	stage_group = parser.add_mutually_exclusive_group()
 	train_group = parser.add_mutually_exclusive_group()
-	stage_group.add_argument('--model', choices=['sl', 'rl'],
+	stage_group.add_argument('--model', choices=['sl', 'rl', 'value'],
                         default='sl', help='Select model to run.')
 
 	train_group.add_argument('--train', action="store_true", help='Training the model')
@@ -123,6 +146,8 @@ def main():
 			trainPolicyClassification(args)
 		elif args.model == 'rl':
 			trainPolicyRL(args)
+		# elif args.model == 'value':
+		# 	createValueData(args)
 
 
 	# filePath = '/data/go/augmented/human700_augmented.hdf5'
