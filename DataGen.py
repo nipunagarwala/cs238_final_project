@@ -101,7 +101,7 @@ def RL_DataGen(policyModel, opponentModel, verbose=False, playbyplay=False):
 
     return (nnPlayer,reward)
 
-def RL_Playout(numGames, policyModel, filename=None, opponentModel=None, verbose=False, playbyplay=False):
+def RL_Playout(numGames, policyModel, filename=None, opponentModel=None, doRecord=True, verbose=False, playbyplay=False):
     """
     Plays out 'numGames' Games between policyModel and opponentModel.
     If the opponentModel is None, the policy will play against Pachi under OpenAI Gym.
@@ -123,11 +123,13 @@ def RL_Playout(numGames, policyModel, filename=None, opponentModel=None, verbose
             nnPlayer,reward = output
             if reward==1:
                 gamesWon += 1
-                win_states += nnPlayer.states
-                win_actions += nnPlayer.actions
+                if doRecord:
+                    win_states += nnPlayer.states
+                    win_actions += nnPlayer.actions
             else:
-                lose_states += nnPlayer.states
-                lose_actions += nnPlayer.actions
+                if doRecord:
+                    lose_states += nnPlayer.states
+                    lose_actions += nnPlayer.actions
 
     if filename:
         write2hdf5(filename, {'win_states':win_states, 'win_actions':win_actions, 

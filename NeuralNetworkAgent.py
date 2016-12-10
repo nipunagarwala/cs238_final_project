@@ -184,6 +184,7 @@ class PolicyNetworkAgent(CNNLayers):
 		accuracy = float((numCorrect))/float((total))
 		print("The accuracy of this batch is {}".format(accuracy))
 
+		return accuracy
 
 	def trainSupervisedNetwork(self, filePath, chkptFile):
 		trainStatesBatch, trainLabelsBatch, testStatesBatch, testLabelsBatch = self.readInputs(filePath)
