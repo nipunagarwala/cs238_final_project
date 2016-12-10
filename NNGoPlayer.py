@@ -86,9 +86,21 @@ class NNGoPlayer(object):
         pyx = (self.nnmodel).make_move(incDimState)
         predSortIndex = np.argsort(pyx)
         legal_actions = get_legal_coords(self.rocEnv)
+        pyx = pyx[0][0]
 
         for action in predSortIndex[0][0]:
             if action in legal_actions:
+                continue
+            else:
+                pyx[action] = 0
+
+        pyx = [float(i)/sum(pyx) for i in pyx]
+
+        actProb = random.uniform(0, 1)
+
+        for action in range(0,NUM_ACTIONS):
+            actProb -= pyx[action]
+            if actProb <= 0:
                 return action
 
         return PASS_ACTION

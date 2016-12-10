@@ -12,9 +12,10 @@ import os
 from NeuralNetworkAgent import *
 
 numGames = 1
-numPlays = 100
-numEpochs = 3
-numUpdate = 20
+numPlays = 100000
+numEpochs = 1
+numUpdate = 100
+numOppAdd = 50
 
 
 
@@ -48,12 +49,13 @@ def trainPolicyRL(args):
 	rlPolicyNetwork =  PolicyNetworkAgent(numGames)
 	print("Created Reinforcement Policy Network")
 	playerLayerOuts, playerWeights, playerBiases, playerBetas, playerScales, _, _ , _ = rlPolicyNetwork.createRLPolicyAgent()
+	# saver.restore(sess, RL_TRAIN_CHKPT)
 	rlPolicyNetwork.updateWeights(oppWeights, oppBiases, oppBetas, oppScales)
 	print("Updated weights for Reinforcement Policy Network")
 
 	for i in range(0,numPlays):
 		winPos, winActions, losePos, loseActions, winNum = RL_Playout(numGames, rlPolicyNetwork, filename=None, 
-								opponentModel=None, verbose=True, playbyplay=False)
+								opponentModel=opponentModel, verbose=True, playbyplay=False)
 
 		loseNum = numGames - winNum
 		print("Played another {} games with random opponent at iteration {}".format(numGames, i))
@@ -82,16 +84,18 @@ def trainPolicyRL(args):
 			NegtrainStatesBatch, NegtrainLabelsBatch, _,_ = rlPolicyNetwork.preProcessInputs(loseActArray, losePosArray, numTrainPos)
 			curLayerOuts, curWeight, curBias, curBeta, curScale =  rlPolicyNetwork.trainAgent(NegtrainStatesBatch, NegtrainLabelsBatch, 
 														numTrainPos, numEpochs, numTrainPos, None, True)
-			curOpp = [curWeight, curBias, curBeta, curScale]
-			oppList.append(curOpp)
 
-		if i%numUpdate == 0:
+		if (i+1)%numUpdate == 0:
 			curOpp = [playerWeights, playerBiases,playerBetas, playerScales]
 			oppList.append(curOpp)
 
 		nextOpp = random.choice(oppList)
 		opponentModel.updateWeights(nextOpp[0], nextOpp[1],nextOpp[2], nextOpp[3])
 		print("Updated weights for Opponent model")
+
+		if (i+1)%100 == 0:
+			saver.save(sess, 'rl_random_self_training', global_step=i+1)
+			print("Saved checkpoint for epoch {}".format(i+1))
 
 # def createValueData(args):
 # 	sess = tf.get_default_session()

@@ -10,6 +10,7 @@ np.set_printoptions(threshold='nan')
 
 # '/data2/features.hdf5'
 
+numUpdate = 0
 
 class PolicyNetworkAgent(CNNLayers):
 	def __init__(self, batch_size):
@@ -61,6 +62,7 @@ class PolicyNetworkAgent(CNNLayers):
 
 
 	def trainAgent(self, inputData, inputLabels, numTrain, numEpochs, cur_batch_size, chkptFile=None, negTrain=False):
+		global numUpdate
 		saver = tf.train.Saver()
 		sess = tf.get_default_session()
 		print("Initializing variables in Tensorflow")
@@ -110,9 +112,11 @@ class PolicyNetworkAgent(CNNLayers):
 					print("The accuracy of this batch is {}".format(accuracy))
 
 
-			if (epoch+1)%2 == 0:
-				saver.save(sess, 'human-aug-pachi5000', global_step=epoch+1)
-				print("Saved checkpoint for epoch {}".format(epoch+1))
+			# if (numUpdate+1)%20 == 0:
+			# 	# saver.save(sess, 'human-aug-pachi5000', global_step=epoch+1)
+			# 	saver.save(sess, 'rl_random_self_training', global_step=numUpdate+1)
+			# 	print("Saved checkpoint for epoch {}".format(numUpdate+1))
+			# 	numUpdate += 1
 
 
 			print("Completed epoch {}".format(epoch))
