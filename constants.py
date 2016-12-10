@@ -4,6 +4,7 @@ BOARD_SZ = 9
 PASS_ACTION = (BOARD_SZ**2)
 RESIGN_ACTION = (BOARD_SZ**2)+1
 KOMI = 0
+MAX_MOVES_PER_GAME = 60
 
 # default feature list for the state generation
 FEATURE_LIST = ["board", "ones", "turns_since", "liberties", "capture_size",
